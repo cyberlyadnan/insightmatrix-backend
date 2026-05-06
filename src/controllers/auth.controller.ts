@@ -2,6 +2,7 @@ import type { Response } from "express";
 import { env } from '../config/env';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendResponse } from '../utils/ApiResponse';
+import { ApiError } from '../utils/ApiError';
 import { authService } from '../services/auth.service';
 import { baseCookieOptions, jwtDurationToMs } from '../utils/cookie-settings';
 
@@ -43,9 +44,20 @@ export const login = asyncHandler(async (req, res) => {
 
 export const refresh = asyncHandler(async (req, res) => {
   const token = req.cookies.refreshToken || req.body.refreshToken;
-  const { accessToken, refreshToken } = await authService.refresh(token);
-  setAuthCookies(res, accessToken, refreshToken);
-  sendResponse(res, { message: "Token refreshed", data: { ok: true } });
+  try {
+    const { accessToken, refreshToken } = await authService.refresh(token);
+    setAuthCookies(res, accessToken, refreshToken);
+    sendResponse(res, { message: "Token refreshed", data: { ok: true } });
+  } catch (err) {
+    if (err instanceof ApiError && err.statusCode >= 400 && err.statusCode < 500) {
+      return res.status(err.statusCode).json({
+        success: false,
+        message: err.message,
+        details: err.details ?? null
+      });
+    }
+    throw err;
+  }
 });
 
 export const logout = asyncHandler(async (req, res) => {
