@@ -18,7 +18,8 @@ export const validate = (schema) => (req, res, next) => {
 
   req.body = value.body;
   req.params = value.params;
-  req.query = value.query;
+  // Express 5: `req.query` is read-only; expose Joi-normalized query here instead.
+  req.validatedQuery = value.query;
   return next();
 };
 

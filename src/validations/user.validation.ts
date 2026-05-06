@@ -2,9 +2,9 @@ import Joi from "joi";
 
 export const updateUserSchema = Joi.object({
   body: Joi.object({
-    name: Joi.string().min(2).max(80),
+    fullName: Joi.string().min(2).max(120),
     role: Joi.string().valid("admin", "user", "survey_manager"),
-    isActive: Joi.boolean()
+    status: Joi.string().valid("active", "suspended")
   })
     .min(1)
     .required(),

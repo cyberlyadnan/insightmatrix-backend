@@ -1,38 +1,57 @@
+import type { Response } from "express";
 import { env } from '../config/env';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendResponse } from '../utils/ApiResponse';
 import { authService } from '../services/auth.service';
+import { baseCookieOptions, jwtDurationToMs } from '../utils/cookie-settings';
 
-const refreshCookieOptions = {
-  httpOnly: true,
-  secure: env.COOKIE_SECURE,
-  sameSite: env.COOKIE_SAME_SITE,
-  domain: env.COOKIE_DOMAIN || undefined,
-  path: "/"
-};
+function setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
+  const base = baseCookieOptions();
+  res.cookie("accessToken", accessToken, {
+    ...base,
+    maxAge: jwtDurationToMs(env.JWT_ACCESS_EXPIRES_IN)
+  });
+  res.cookie("refreshToken", refreshToken, {
+    ...base,
+    maxAge: jwtDurationToMs(env.JWT_REFRESH_EXPIRES_IN)
+  });
+}
+
+function clearAuthCookies(res: Response) {
+  const base = baseCookieOptions();
+  res.clearCookie("accessToken", base);
+  res.clearCookie("refreshToken", base);
+}
 
 export const register = asyncHandler(async (req, res) => {
-  const user = await authService.register(req.body);
-  sendResponse(res, { statusCode: 201, message: "Registration successful", data: user });
+  const result = await authService.register(req.body);
+  if (result.accessToken && result.refreshToken) {
+    setAuthCookies(res, result.accessToken, result.refreshToken);
+  }
+  sendResponse(res, {
+    statusCode: 201,
+    message: result.accessToken ? "Registration successful" : "Please verify your email to continue.",
+    data: { user: result.user }
+  });
 });
 
 export const login = asyncHandler(async (req, res) => {
   const { user, accessToken, refreshToken } = await authService.login(req.body);
-  res.cookie("refreshToken", refreshToken, refreshCookieOptions);
-  sendResponse(res, { message: "Login successful", data: { user, accessToken } });
+  setAuthCookies(res, accessToken, refreshToken);
+  sendResponse(res, { message: "Login successful", data: { user } });
 });
 
 export const refresh = asyncHandler(async (req, res) => {
   const token = req.cookies.refreshToken || req.body.refreshToken;
   const { accessToken, refreshToken } = await authService.refresh(token);
-  res.cookie("refreshToken", refreshToken, refreshCookieOptions);
-  sendResponse(res, { message: "Token refreshed", data: { accessToken } });
+  setAuthCookies(res, accessToken, refreshToken);
+  sendResponse(res, { message: "Token refreshed", data: { ok: true } });
 });
 
 export const logout = asyncHandler(async (req, res) => {
   const token = req.cookies.refreshToken || req.body.refreshToken;
   await authService.logout(token);
-  res.clearCookie("refreshToken", refreshCookieOptions);
+  clearAuthCookies(res);
   sendResponse(res, { message: "Logout successful" });
 });
 
@@ -46,3 +65,17 @@ export const resetPassword = asyncHandler(async (req, res) => {
   sendResponse(res, { message: "Password reset successful" });
 });
 
+export const verifyEmail = asyncHandler(async (req, res) => {
+  const token = typeof req.query.token === "string" ? req.query.token : undefined;
+  try {
+    await authService.verifyEmail(token);
+    return res.redirect(302, `${env.CLIENT_URL}/login?verified=1`);
+  } catch {
+    return res.redirect(302, `${env.CLIENT_URL}/login?verifyError=1`);
+  }
+});
+
+export const resendVerification = asyncHandler(async (req, res) => {
+  await authService.resendVerification(req.body.email);
+  sendResponse(res, { message: "If the account exists and is unverified, a new email was sent." });
+});

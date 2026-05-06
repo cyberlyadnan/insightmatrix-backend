@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "seed:admin": "tsx scripts/seed-admin.ts"
   },
   "keywords": [
     "express",
@@ -42,7 +43,7 @@
     "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0",
     "winston": "^3.18.3",
-    "xss-clean": "^0.1.4",
+    "xss": "^1.0.15",
     "bcryptjs": "^3.0.2"
   },
   "devDependencies": {

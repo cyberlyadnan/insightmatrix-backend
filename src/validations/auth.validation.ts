@@ -2,7 +2,7 @@ import Joi from "joi";
 
 export const registerSchema = Joi.object({
   body: Joi.object({
-    name: Joi.string().min(2).max(80).required(),
+    fullName: Joi.string().min(2).max(120).required(),
     email: Joi.string().email().required(),
     password: Joi.string().min(8).required()
   }).required(),
@@ -34,3 +34,8 @@ export const resetPasswordSchema = Joi.object({
   query: Joi.object({}).required()
 });
 
+export const resendVerificationSchema = Joi.object({
+  body: Joi.object({ email: Joi.string().email().required() }).required(),
+  params: Joi.object({}).required(),
+  query: Joi.object({}).required()
+});

@@ -7,6 +7,8 @@ const schema = Joi.object({
   NODE_ENV: Joi.string().valid("development", "production", "test").default("development"),
   PORT: Joi.number().default(5000),
   API_PREFIX: Joi.string().default("/api/v1"),
+  /** Absolute origin used in verification emails (direct backend URL) */
+  API_PUBLIC_URL: Joi.string().uri().default("http://localhost:5000"),
   MONGO_URI: Joi.string().required(),
   CLIENT_URL: Joi.string().required(),
   JWT_ACCESS_SECRET: Joi.string().required(),
@@ -14,6 +16,7 @@ const schema = Joi.object({
   JWT_ACCESS_EXPIRES_IN: Joi.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default("7d"),
   JWT_RESET_PASSWORD_EXPIRES_MIN: Joi.number().default(30),
+  SKIP_EMAIL_VERIFICATION: Joi.string().valid("true", "false").default("false"),
   COOKIE_DOMAIN: Joi.string().allow(""),
   COOKIE_SECURE: Joi.boolean().default(false),
   COOKIE_SAME_SITE: Joi.string().valid("lax", "strict", "none").default("lax"),
@@ -36,5 +39,8 @@ if (error) {
   throw new Error(`Environment validation failed: ${error.message}`);
 }
 
-export const env = value;
+export const env = {
+  ...value,
+  skipEmailVerification: value.SKIP_EMAIL_VERIFICATION === "true"
+};
 
