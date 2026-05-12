@@ -24,7 +24,9 @@ export type PanelSurveyDto = {
   provider: PanelSurveyProviderSummary | null;
   surveyStatus: PanelSurveyStatus;
   externalSurveyUrl: string;
+  supplierProjectPid: string;
   trackingParameterName: string;
+  participantQueryParam: string;
   targetCountries: string[];
   targetGender: string;
   targetAgeMin: number | null;
@@ -57,6 +59,10 @@ export type PanelSurveyPublicDto = {
   targetCountries: string[];
   surveyStatus: PanelSurveyStatus;
   externalSurveyUrl: string;
+  /** Supplier URL query key we append with the participant id from the landing URL */
+  trackingParameterName: string;
+  /** Query key panels use on OUR landing URL (e.g. ?pid=…) — read client-side and forwarded as trackingParameterName */
+  participantQueryParam: string;
   providerName: string | null;
   providerCode: string | null;
 };
@@ -112,7 +118,9 @@ export function toPanelSurveyDto(doc: {
   providerId: unknown;
   surveyStatus: PanelSurveyStatus;
   externalSurveyUrl: string;
+  supplierProjectPid?: string;
   trackingParameterName?: string;
+  participantQueryParam?: string;
   targetCountries?: string[];
   targetGender?: string;
   targetAgeMin?: number | null;
@@ -154,7 +162,9 @@ export function toPanelSurveyDto(doc: {
     provider: providerSummary,
     surveyStatus: doc.surveyStatus,
     externalSurveyUrl: doc.externalSurveyUrl,
+    supplierProjectPid: doc.supplierProjectPid ?? "",
     trackingParameterName: doc.trackingParameterName ?? "toid",
+    participantQueryParam: doc.participantQueryParam ?? "pid",
     targetCountries: doc.targetCountries ?? [],
     targetGender: doc.targetGender ?? "all",
     targetAgeMin: doc.targetAgeMin ?? null,
@@ -188,6 +198,8 @@ export function toPanelSurveyPublicDto(doc: {
   targetCountries?: string[];
   surveyStatus: PanelSurveyStatus;
   externalSurveyUrl: string;
+  trackingParameterName?: string;
+  participantQueryParam?: string;
   providerId: unknown;
 }): PanelSurveyPublicDto {
   const { summary } = resolveProvider(doc.providerId);
@@ -199,6 +211,8 @@ export function toPanelSurveyPublicDto(doc: {
     targetCountries: doc.targetCountries ?? [],
     surveyStatus: doc.surveyStatus,
     externalSurveyUrl: doc.externalSurveyUrl,
+    trackingParameterName: doc.trackingParameterName ?? "toid",
+    participantQueryParam: doc.participantQueryParam ?? "pid",
     providerName: summary?.companyName ?? null,
     providerCode: summary?.companyCode ?? null
   };

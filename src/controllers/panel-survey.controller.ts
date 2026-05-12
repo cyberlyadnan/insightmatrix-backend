@@ -1,6 +1,10 @@
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendResponse } from '../utils/ApiResponse';
 import { panelSurveyService } from '../services/panel-survey.service';
+import {
+  fetchPanelSurveyAnalyticsReport,
+  recordRoutingEvent
+} from '../services/panel-survey-analytics.service';
 import { toPanelSurveyDto, toPanelSurveyPublicDto } from '../utils/panel-survey.dto';
 
 export const listPanelSurveys = asyncHandler(async (req, res) => {
@@ -8,6 +12,20 @@ export const listPanelSurveys = asyncHandler(async (req, res) => {
   sendResponse(res, {
     data: result.items.map((item) => toPanelSurveyDto(item.toObject ? item.toObject() : item)),
     meta: result.meta
+  });
+});
+
+export const getPanelSurveyAnalytics = asyncHandler(async (req, res) => {
+  const data = await fetchPanelSurveyAnalyticsReport(req.params.id);
+  sendResponse(res, { data });
+});
+
+export const postPanelSurveyRoutingEvent = asyncHandler(async (req, res) => {
+  const doc = await recordRoutingEvent(req.params.id, req.body);
+  sendResponse(res, {
+    statusCode: 201,
+    message: "Event recorded",
+    data: { id: String(doc._id) }
   });
 });
 

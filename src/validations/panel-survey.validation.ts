@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { PANEL_ROUTING_EVENT_TYPES } from '../constants/panel-survey-routing';
 import {
   PANEL_QUOTA_GROUP_STATUSES,
   PANEL_SURVEY_DEVICE_TYPES,
@@ -21,7 +22,9 @@ const surveyPayload = {
   providerId: Joi.string().hex().length(24).required(),
   surveyStatus: Joi.string().valid(...PANEL_SURVEY_STATUSES).default("draft"),
   externalSurveyUrl: Joi.string().trim().max(4000).required(),
+  supplierProjectPid: Joi.string().trim().max(200).allow("", null),
   trackingParameterName: Joi.string().trim().max(80).allow("", null),
+  participantQueryParam: Joi.string().trim().max(80).allow("", null),
   targetCountries: Joi.array().items(Joi.string().trim().max(8)).max(500).default([]),
   targetGender: Joi.string().valid(...PANEL_SURVEY_GENDER_TARGETS).default("all"),
   targetAgeMin: Joi.number().integer().min(0).max(120).allow(null),
@@ -85,7 +88,9 @@ export const updatePanelSurveySchema = Joi.object({
     providerId: Joi.string().hex().length(24).optional(),
     surveyStatus: Joi.string().valid(...PANEL_SURVEY_STATUSES),
     externalSurveyUrl: Joi.string().trim().max(4000),
+    supplierProjectPid: Joi.string().trim().max(200).allow("", null),
     trackingParameterName: Joi.string().trim().max(80).allow("", null),
+    participantQueryParam: Joi.string().trim().max(80).allow("", null),
     targetCountries: Joi.array().items(Joi.string().trim().max(8)).max(500),
     targetGender: Joi.string().valid(...PANEL_SURVEY_GENDER_TARGETS),
     targetAgeMin: Joi.number().integer().min(0).max(120).allow(null),
@@ -123,6 +128,20 @@ export const patchPanelSurveyStatusSchema = Joi.object({
 
 export const paramsIdSchema = Joi.object({
   body: Joi.object({}).optional(),
+  params: Joi.object({ id: Joi.string().required() }).required(),
+  query: Joi.object({}).required()
+});
+
+export const panelSurveyRoutingEventSchema = Joi.object({
+  body: Joi.object({
+    eventType: Joi.string()
+      .valid(...PANEL_ROUTING_EVENT_TYPES)
+      .required(),
+    quotaGroupId: Joi.string().trim().max(64).allow("", null),
+    quotaGroupName: Joi.string().trim().max(200).allow("", null),
+    supplierParticipantRef: Joi.string().trim().max(500).allow("", null),
+    meta: Joi.any().optional()
+  }).required(),
   params: Joi.object({ id: Joi.string().required() }).required(),
   query: Joi.object({}).required()
 });

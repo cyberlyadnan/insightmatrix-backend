@@ -50,7 +50,11 @@ const panelSurveySchema = new mongoose.Schema(
     },
 
     externalSurveyUrl: { type: String, required: true, trim: true, maxlength: 4000 },
+    /** Company project id from supplier URL (?pid=…) — match callbacks by this value */
+    supplierProjectPid: { type: String, trim: true, maxlength: 200, default: "", index: true },
     trackingParameterName: { type: String, trim: true, maxlength: 80, default: "toid" },
+    /** Query key on OUR landing URL (?pid=…) supplied by the router; forwarded to supplier as `trackingParameterName` */
+    participantQueryParam: { type: String, trim: true, maxlength: 80, default: "pid" },
 
     targetCountries: { type: [String], default: [] },
     targetGender: {

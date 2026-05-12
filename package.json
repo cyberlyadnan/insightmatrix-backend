@@ -13,7 +13,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "seed:admin": "tsx scripts/seed-admin.ts",
-    "seed:survey-providers": "tsx scripts/seed-survey-providers.ts"
+    "seed:survey-providers": "tsx scripts/seed-survey-providers.ts",
+    "seed:panel-surveys": "tsx scripts/seed-panel-surveys.ts"
   },
   "keywords": [
     "express",

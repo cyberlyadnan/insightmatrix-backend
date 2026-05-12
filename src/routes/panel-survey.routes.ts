@@ -3,9 +3,11 @@ import {
   createPanelSurvey,
   deletePanelSurvey,
   getPanelSurvey,
+  getPanelSurveyAnalytics,
   getPublicPanelSurvey,
   listPanelSurveys,
   patchPanelSurveyStatus,
+  postPanelSurveyRoutingEvent,
   updatePanelSurvey
 } from '../controllers/panel-survey.controller';
 import { authenticate, authorize } from '../middleware/auth.middleware';
@@ -14,6 +16,7 @@ import { ROLES } from '../constants/roles';
 import {
   createPanelSurveySchema,
   listPanelSurveysSchema,
+  panelSurveyRoutingEventSchema,
   paramsIdSchema,
   patchPanelSurveyStatusSchema,
   updatePanelSurveySchema
@@ -28,6 +31,12 @@ router.use(authorize(ROLES.ADMIN, ROLES.SURVEY_MANAGER));
 
 router.get("/", validate(listPanelSurveysSchema), listPanelSurveys);
 router.post("/", validate(createPanelSurveySchema), createPanelSurvey);
+router.get("/:id/analytics", validate(paramsIdSchema), getPanelSurveyAnalytics);
+router.post(
+  "/:id/analytics/events",
+  validate(panelSurveyRoutingEventSchema),
+  postPanelSurveyRoutingEvent
+);
 router.get("/:id", validate(paramsIdSchema), getPanelSurvey);
 router.patch("/:id", validate(updatePanelSurveySchema), updatePanelSurvey);
 router.patch("/:id/status", validate(patchPanelSurveyStatusSchema), patchPanelSurveyStatus);

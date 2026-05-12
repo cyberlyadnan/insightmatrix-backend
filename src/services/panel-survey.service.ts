@@ -3,6 +3,7 @@ import { SurveyCompany } from '../models/SurveyCompany';
 import { PanelSurvey } from '../models/PanelSurvey';
 import { panelSurveyRepository, type PanelSurveyFilter } from '../repositories/panel-survey.repository';
 import type { PanelSurveyStatus } from '../constants/panel-survey';
+import { extractSupplierProjectPidFromUrl } from '../utils/supplier-survey-url';
 
 const SORT_FIELDS = [
   "surveyName",
@@ -32,6 +33,34 @@ function isMongoDuplicateKey(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: number }).code === 11000;
 }
 
+function normalizeParticipantQueryParam(v: unknown): string {
+  const s = String(v ?? "").trim();
+  if (!s) return "pid";
+  if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,79}$/.test(s)) {
+    throw new ApiError(
+      400,
+      "participantQueryParam must start with a letter and use only letters, numbers, hyphen, or underscore"
+    );
+  }
+  return s;
+}
+
+function normalizeTrackingParameterName(v: unknown): string {
+  const s = String(v ?? "").trim();
+  return s || "toid";
+}
+
+/** Non-empty explicit override wins; otherwise parse `pid` from partner survey URL */
+function resolveSupplierProjectPid(
+  payload: Record<string, unknown>,
+  mergedExternalUrl: string
+): string {
+  const explicit =
+    payload.supplierProjectPid !== undefined ? String(payload.supplierProjectPid ?? "").trim() : "";
+  if (explicit.length > 0) return explicit.slice(0, 200);
+  return (extractSupplierProjectPidFromUrl(mergedExternalUrl) ?? "").slice(0, 200);
+}
+
 export const panelSurveyService = {
   create: async (payload: Record<string, unknown>) => {
     const pid = payload.providerId;
@@ -39,6 +68,10 @@ export const panelSurveyService = {
       const exists = await SurveyCompany.findById(pid);
       if (!exists) throw new ApiError(400, "Provider not found");
     }
+    payload.participantQueryParam = normalizeParticipantQueryParam(payload.participantQueryParam);
+    payload.trackingParameterName = normalizeTrackingParameterName(payload.trackingParameterName);
+    const entryUrl = String(payload.externalSurveyUrl ?? "").trim();
+    payload.supplierProjectPid = resolveSupplierProjectPid(payload, entryUrl);
     try {
       const created = await panelSurveyRepository.create(payload);
       if (!created) throw new ApiError(500, "Failed to load survey after create");
@@ -72,7 +105,8 @@ export const panelSurveyService = {
       filter.$or = [
         { surveyName: { $regex: q, $options: "i" } },
         { surveyCode: { $regex: q, $options: "i" } },
-        { externalSurveyId: { $regex: q, $options: "i" } }
+        { externalSurveyId: { $regex: q, $options: "i" } },
+        { supplierProjectPid: { $regex: q, $options: "i" } }
       ];
     }
 
@@ -101,9 +135,22 @@ export const panelSurveyService = {
     return doc;
   },
 
+  /** Resolve routing survey by supplier callback project id (`pid`) */
+  getBySupplierProjectPid: async (supplierProjectPid: string) => {
+    const t = supplierProjectPid.trim();
+    if (!t) throw new ApiError(400, "supplierProjectPid required");
+    const doc = await PanelSurvey.findOne({ supplierProjectPid: t });
+    if (!doc) throw new ApiError(404, "Survey not found");
+    return doc;
+  },
+
   getPublicById: async (id: string) => {
     const doc = await panelSurveyRepository.findByIdPopulated(id);
     if (!doc) throw new ApiError(404, "Survey not found");
+    const plain = doc.toObject?.() ?? doc;
+    if (plain.surveyStatus !== "active") {
+      throw new ApiError(404, "Survey not available");
+    }
     return doc;
   },
 
@@ -120,6 +167,21 @@ export const panelSurveyService = {
       });
       if (clash) throw new ApiError(409, "Survey code already exists");
       payload.surveyCode = code;
+    }
+    if (payload.participantQueryParam !== undefined) {
+      payload.participantQueryParam = normalizeParticipantQueryParam(payload.participantQueryParam);
+    }
+    if (payload.trackingParameterName !== undefined) {
+      payload.trackingParameterName = normalizeTrackingParameterName(payload.trackingParameterName);
+    }
+    if (payload.externalSurveyUrl !== undefined || payload.supplierProjectPid !== undefined) {
+      const current = await panelSurveyRepository.findById(id);
+      if (!current) throw new ApiError(404, "Survey not found");
+      const mergedUrl =
+        payload.externalSurveyUrl !== undefined
+          ? String(payload.externalSurveyUrl).trim()
+          : current.externalSurveyUrl;
+      payload.supplierProjectPid = resolveSupplierProjectPid(payload, mergedUrl);
     }
     try {
       const doc = await panelSurveyRepository.updateById(id, payload);
