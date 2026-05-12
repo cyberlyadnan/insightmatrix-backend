@@ -1,6 +1,9 @@
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendResponse } from '../utils/ApiResponse';
+import { ApiError } from '../utils/ApiError';
+import { env } from '../config/env';
 import { userService } from '../services/user.service';
+import { bufferToDataUrl, hasValidCloudinaryConfig, uploadToCloudinary } from '../services/upload.service';
 import { toPublicUser } from '../utils/user.dto';
 
 export const listUsers = asyncHandler(async (req, res) => {
@@ -25,5 +28,67 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
 export const getProfile = asyncHandler(async (req, res) => {
   sendResponse(res, { data: toPublicUser(req.user) });
+});
+
+export const updateProfile = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  const user = await userService.updateById(String(userId), req.body);
+  sendResponse(res, { message: "Profile updated", data: toPublicUser(user) });
+});
+
+export const uploadProfileAvatar = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  if (!req.file?.buffer) throw new ApiError(400, "Avatar image is required");
+  const mimeType = req.file.mimetype || "image/webp";
+  let avatarUrl: string | null = null;
+
+  if (hasValidCloudinaryConfig()) {
+    try {
+      const result = (await uploadToCloudinary(req.file.buffer, "avatars")) as { secure_url?: string };
+      avatarUrl = result?.secure_url ?? null;
+    } catch (error) {
+      if (env.NODE_ENV === "production") throw error;
+    }
+  }
+
+  if (!avatarUrl) {
+    avatarUrl = bufferToDataUrl(req.file.buffer, mimeType);
+  }
+
+  const user = await userService.updateById(String(userId), { avatar: avatarUrl });
+  sendResponse(res, { message: "Avatar updated", data: toPublicUser(user) });
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  await userService.updatePassword(String(userId), req.body.currentPassword, req.body.newPassword);
+  sendResponse(res, { message: "Password updated successfully" });
+});
+
+export const requestAccountDeletion = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  const user = await userService.requestAccountDeletion(String(userId), req.body.reason);
+  sendResponse(res, { message: "Account deletion request submitted", data: toPublicUser(user) });
+});
+
+export const cancelAccountDeletionRequest = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  const user = await userService.cancelAccountDeletionRequest(String(userId));
+  sendResponse(res, { message: "Account deletion request cancelled", data: toPublicUser(user) });
+});
+
+export const listDeletionRequests = asyncHandler(async (_req, res) => {
+  const users = await userService.listDeletionRequests();
+  sendResponse(res, { data: users.map((u) => toPublicUser(u)) });
+});
+
+export const approveAccountDeletion = asyncHandler(async (req, res) => {
+  const user = await userService.approveAccountDeletion(req.params.id);
+  sendResponse(res, { message: "Account deactivated", data: toPublicUser(user) });
 });
 

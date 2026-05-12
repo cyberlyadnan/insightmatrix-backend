@@ -11,9 +11,14 @@ const userSchema = new mongoose.Schema(
     avatar: { type: String, default: null },
     status: {
       type: String,
-      enum: ["active", "suspended"],
+      enum: ["active", "suspended", "deactivated"],
       default: "active"
     },
+    isActive: { type: Boolean, default: true },
+    deletionRequested: { type: Boolean, default: false },
+    deletionRequestedAt: { type: Date, default: null },
+    deletionRequestReason: { type: String, trim: true, default: null },
+    deactivatedAt: { type: Date, default: null },
     /** Legacy field — migration helper */
     name: { type: String, trim: true }
   },

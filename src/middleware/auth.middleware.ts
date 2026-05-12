@@ -13,7 +13,9 @@ export const authenticate = async (req, res, next) => {
   try {
     const payload = verifyAccessToken(token);
     const user = await User.findById(payload.sub);
-    if (!user || user.status === "suspended") return next(new ApiError(401, "Invalid user session"));
+    if (!user || user.status !== "active" || user.isActive === false) {
+      return next(new ApiError(401, "Invalid user session"));
+    }
     req.user = user;
     return next();
   } catch {

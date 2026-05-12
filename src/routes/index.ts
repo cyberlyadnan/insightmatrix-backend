@@ -4,6 +4,9 @@ import authRoutes from './auth.routes';
 import userRoutes from './user.routes';
 import surveyRoutes from './survey.routes';
 import responseRoutes from './response.routes';
+import prescreenRoutes from './prescreen.routes';
+import contactQueryRoutes from './contact-query.routes';
+import surveyCompanyRoutes from './survey-company.routes';
 
 const router = Router();
 
@@ -12,6 +15,9 @@ router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 router.use("/surveys", surveyRoutes);
 router.use("/responses", responseRoutes);
+router.use("/prescreens", prescreenRoutes);
+router.use("/contact-queries", contactQueryRoutes);
+router.use("/survey-companies", surveyCompanyRoutes);
 
 export default router;
 

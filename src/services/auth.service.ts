@@ -110,7 +110,9 @@ export const authService = {
       throw new ApiError(403, "Please verify your email before signing in.");
     }
 
-    if (user.status === "suspended") throw new ApiError(403, "Your account has been suspended.");
+    if (user.status !== "active" || user.isActive === false) {
+      throw new ApiError(403, "Your account is inactive.");
+    }
 
     const tokens = await issueTokens(user);
     return {
@@ -127,7 +129,9 @@ export const authService = {
     if (dayjs(stored.expiresAt).isBefore(dayjs())) throw new ApiError(401, "Refresh token expired");
 
     const user = await userRepository.findById(decoded.sub);
-    if (!user || user.status === "suspended") throw new ApiError(401, "User no longer exists");
+    if (!user || user.status !== "active" || user.isActive === false) {
+      throw new ApiError(401, "User no longer exists");
+    }
 
     const accessToken = signAccessToken(buildAuthPayload(user));
     const nextRefreshToken = signRefreshToken(buildAuthPayload(user));

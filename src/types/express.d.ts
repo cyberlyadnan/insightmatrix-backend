@@ -10,6 +10,11 @@ declare global {
       isVerified: boolean;
       avatar: string | null;
       status: string;
+      isActive: boolean;
+      deletionRequested: boolean;
+      deletionRequestedAt: Date | null;
+      deletionRequestReason: string | null;
+      deactivatedAt: Date | null;
     }
 
     interface Request {

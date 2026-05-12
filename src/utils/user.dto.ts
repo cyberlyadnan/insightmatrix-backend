@@ -19,6 +19,11 @@ export const toPublicUser = (user: unknown) => {
     isVerified: Boolean(plain.isVerified),
     avatar: plain.avatar ?? null,
     status: plain.status ?? "active",
+    isActive: plain.isActive !== false,
+    deletionRequested: Boolean(plain.deletionRequested),
+    deletionRequestedAt: plain.deletionRequestedAt ?? null,
+    deletionRequestReason: plain.deletionRequestReason ?? null,
+    deactivatedAt: plain.deactivatedAt ?? null,
     createdAt: plain.createdAt,
     updatedAt: plain.updatedAt
   };
