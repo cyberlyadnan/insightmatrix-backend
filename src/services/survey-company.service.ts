@@ -41,7 +41,7 @@ export const surveyCompanyService = {
 
   list: async (params: ListParams) => {
     const page = Math.max(1, Number(params.page ?? 1));
-    const pageSize = Math.min(100, Math.max(1, Number(params.pageSize ?? 20)));
+    const pageSize = Math.min(500, Math.max(1, Number(params.pageSize ?? 20)));
     const filter: SurveyCompanyFilter = {};
 
     if (params.status === "active" || params.status === "inactive") {
