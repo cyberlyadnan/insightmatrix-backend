@@ -184,3 +184,25 @@ export async function recordRoutingEvent(
 
   return doc;
 }
+
+/** Same as recordRoutingEvent but resolves survey by partner `supplierProjectPid` (callback ?pid=). */
+export async function recordRoutingEventBySupplierProjectPid(
+  supplierProjectPid: string,
+  payload: {
+    eventType: PanelRoutingEventType;
+    quotaGroupId?: string | null;
+    quotaGroupName?: string | null;
+    supplierParticipantRef?: string | null;
+    meta?: unknown;
+  }
+) {
+  const t = supplierProjectPid.trim();
+  if (!t) throw new ApiError(400, "supplierProjectPid is required");
+
+  const survey = await PanelSurvey.findOne({ supplierProjectPid: t }).select("_id").lean();
+  if (!survey?._id) {
+    throw new ApiError(404, "No survey matches this partner project id (pid)");
+  }
+
+  return recordRoutingEvent(String(survey._id), payload);
+}

@@ -8,10 +8,12 @@ import prescreenRoutes from './prescreen.routes';
 import contactQueryRoutes from './contact-query.routes';
 import surveyCompanyRoutes from './survey-company.routes';
 import panelSurveyRoutes from './panel-survey.routes';
+import publicRoutes from './public.routes';
 
 const router = Router();
 
 router.get("/health", healthCheck);
+router.use("/public", publicRoutes);
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 router.use("/surveys", surveyRoutes);
