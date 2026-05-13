@@ -8,6 +8,7 @@ import prescreenRoutes from './prescreen.routes';
 import contactQueryRoutes from './contact-query.routes';
 import surveyCompanyRoutes from './survey-company.routes';
 import panelSurveyRoutes from './panel-survey.routes';
+import companySurveyPaymentRoutes from './company-survey-payment.routes';
 import publicRoutes from './public.routes';
 
 const router = Router();
@@ -22,6 +23,7 @@ router.use("/prescreens", prescreenRoutes);
 router.use("/contact-queries", contactQueryRoutes);
 router.use("/survey-companies", surveyCompanyRoutes);
 router.use("/panel-surveys", panelSurveyRoutes);
+router.use("/company-payments", companySurveyPaymentRoutes);
 
 export default router;
 

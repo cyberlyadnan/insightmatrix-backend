@@ -30,7 +30,10 @@ const schema = Joi.object({
   SMTP_PASS: Joi.string().allow(""),
   SMTP_FROM: Joi.string().allow(""),
   RATE_LIMIT_WINDOW_MS: Joi.number().default(15 * 60 * 1000),
-  RATE_LIMIT_MAX: Joi.number().default(300)
+  RATE_LIMIT_MAX: Joi.number().default(300),
+  /** Shown on PDF invoices (optional) */
+  INVOICE_PLATFORM_NAME: Joi.string().max(200).allow(""),
+  INVOICE_PLATFORM_ADDRESS: Joi.string().max(2000).allow("")
 }).unknown();
 
 const { value, error } = schema.validate(process.env);

@@ -1,9 +1,11 @@
 import { ApiError } from '../utils/ApiError';
+import { logger } from '../config/logger';
 import { SurveyCompany } from '../models/SurveyCompany';
 import { PanelSurvey } from '../models/PanelSurvey';
 import { panelSurveyRepository, type PanelSurveyFilter } from '../repositories/panel-survey.repository';
 import type { PanelSurveyStatus } from '../constants/panel-survey';
 import { extractSupplierProjectPidFromUrl } from '../utils/supplier-survey-url';
+import { companySurveyPaymentService } from './company-survey-payment.service';
 
 const SORT_FIELDS = [
   "surveyName",
@@ -75,6 +77,15 @@ export const panelSurveyService = {
     try {
       const created = await panelSurveyRepository.create(payload);
       if (!created) throw new ApiError(500, "Failed to load survey after create");
+      try {
+        const plain = created.toObject?.() ?? created;
+        await companySurveyPaymentService.createAutoFromPanelSurvey(plain as never);
+      } catch (payErr) {
+        logger.error("Failed to auto-create company payment / invoice for new survey", {
+          surveyId: String(created._id),
+          err: payErr instanceof Error ? payErr.message : payErr
+        });
+      }
       return created;
     } catch (error) {
       if (error instanceof ApiError) throw error;

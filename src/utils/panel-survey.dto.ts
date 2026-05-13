@@ -40,6 +40,8 @@ export type PanelSurveyDto = {
   estimatedLOI: number | null;
   payoutToUser: number | null;
   revenuePerComplete: number | null;
+  companyBillingAmount: number;
+  companyBillingTaxPercent: number;
   totalQuota: number;
   remainingQuota: number;
   dynamicQuotaGroups: PanelSurveyQuotaGroupDto[];
@@ -135,6 +137,8 @@ export function toPanelSurveyDto(doc: {
   estimatedLOI?: number | null;
   payoutToUser?: number | null;
   revenuePerComplete?: number | null;
+  companyBillingAmount?: number | null;
+  companyBillingTaxPercent?: number | null;
   totalQuota?: number;
   remainingQuota?: number;
   dynamicQuotaGroups?: Array<{
@@ -180,6 +184,8 @@ export function toPanelSurveyDto(doc: {
     estimatedLOI: doc.estimatedLOI ?? null,
     payoutToUser: doc.payoutToUser ?? null,
     revenuePerComplete: doc.revenuePerComplete ?? null,
+    companyBillingAmount: Math.round(Math.max(0, Number(doc.companyBillingAmount ?? 0)) * 100) / 100,
+    companyBillingTaxPercent: Math.min(100, Math.max(0, Number(doc.companyBillingTaxPercent ?? 0))),
     totalQuota: doc.totalQuota ?? 0,
     remainingQuota: doc.remainingQuota ?? 0,
     dynamicQuotaGroups: (doc.dynamicQuotaGroups ?? []).map(groupDto),

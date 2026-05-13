@@ -84,6 +84,11 @@ const panelSurveySchema = new mongoose.Schema(
     payoutToUser: { type: Number, min: 0, default: null },
     revenuePerComplete: { type: Number, min: 0, default: null },
 
+    /** What the supplier company pays InsightMatrix for this routing study (money, not member points). */
+    companyBillingAmount: { type: Number, min: 0, default: 0 },
+    /** Tax % applied to companyBillingAmount for invoicing (0 = none). */
+    companyBillingTaxPercent: { type: Number, min: 0, max: 100, default: 0 },
+
     totalQuota: { type: Number, min: 0, default: 0 },
     remainingQuota: { type: Number, min: 0, default: 0 },
     dynamicQuotaGroups: [quotaGroupSchema],
