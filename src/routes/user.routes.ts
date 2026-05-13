@@ -5,11 +5,14 @@ import {
   changePassword,
   deleteUser,
   getMemberPanelPrescreenBundle,
+  getMemberPanelWallet,
   getProfile,
   getUser,
   listDeletionRequests,
+  listMemberAvailablePanelSurveys,
   listUsers,
   requestAccountDeletion,
+  startMemberPanelSurveyAttempt,
   submitMemberPanelPrescreen,
   updateProfile,
   updateUser,
@@ -19,6 +22,7 @@ import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
 import {
   changePasswordSchema,
+  panelSurveyIdParamSchema,
   requestDeletionSchema,
   updateProfileSchema,
   updateUserSchema
@@ -33,6 +37,13 @@ router.use(authenticate);
 router.get("/profile", getProfile);
 router.get("/panel-prescreen", getMemberPanelPrescreenBundle);
 router.post("/panel-prescreen/submit", validate(submitPanelPrescreenSchema), submitMemberPanelPrescreen);
+router.get("/panel/wallet", getMemberPanelWallet);
+router.get("/panel/available-surveys", listMemberAvailablePanelSurveys);
+router.post(
+  "/panel/surveys/:surveyId/start-attempt",
+  validate(panelSurveyIdParamSchema),
+  startMemberPanelSurveyAttempt
+);
 router.patch("/profile", validate(updateProfileSchema), updateProfile);
 router.post("/profile/avatar", upload.single("avatar"), uploadProfileAvatar);
 router.post("/profile/change-password", validate(changePasswordSchema), changePassword);

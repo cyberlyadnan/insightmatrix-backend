@@ -41,3 +41,9 @@ export const requestDeletionSchema = Joi.object({
   query: Joi.object({}).required()
 });
 
+export const panelSurveyIdParamSchema = Joi.object({
+  body: Joi.object({}).optional(),
+  params: Joi.object({ surveyId: Joi.string().hex().length(24).required() }).required(),
+  query: Joi.object({}).required()
+});
+

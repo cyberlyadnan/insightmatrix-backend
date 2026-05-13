@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError';
 import { PanelSurvey } from '../models/PanelSurvey';
 import { PanelSurveyRoutingEvent } from '../models/PanelSurveyRoutingEvent';
 import type { PanelRoutingEventType } from '../constants/panel-survey-routing';
+import { tryAwardPointsForComplete } from './panel-member-wallet.service';
 
 function asObjectId(id: string): Types.ObjectId {
   if (!Types.ObjectId.isValid(id)) throw new ApiError(400, "Invalid survey id");
@@ -181,6 +182,8 @@ export async function recordRoutingEvent(
     supplierParticipantRef: String(payload.supplierParticipantRef ?? "").trim().slice(0, 500),
     meta: payload.meta ?? null
   });
+
+  await tryAwardPointsForComplete(sid, payload.supplierParticipantRef, payload.eventType).catch(() => {});
 
   return doc;
 }

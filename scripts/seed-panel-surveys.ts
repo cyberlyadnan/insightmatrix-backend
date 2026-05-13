@@ -12,6 +12,49 @@ import { extractSupplierProjectPidFromUrl } from "../src/utils/supplier-survey-u
  */
 
 const SEED_SURVEYS = [
+  /**
+   * Broad-match QA survey: no country / age / profession / industry / device filters in
+   * `surveyMatchesMemberProfile` — any member with a completed required prescreen should see it.
+   * Use to verify dashboard → surveys → start page. URL must include `pid=` for supplierProjectPid.
+   */
+  {
+    surveyCode: "IM_PANEL_OPEN_QA",
+    providerCompanyCode: "DYNATA",
+    surveyName: "[QA] Open panel study — test flow to start page",
+    externalSurveyId: "EXT-IM-PANEL-OPEN-QA",
+    surveyStatus: "active" as const,
+    externalSurveyUrl:
+      "https://example.com/panel-qa/open-study?wave=qa&pid=IM_PANEL_OPEN_QA_PID",
+    trackingParameterName: "toid",
+    participantQueryParam: "pid",
+    targetCountries: [],
+    targetGender: "all" as const,
+    targetAgeMin: null,
+    targetAgeMax: null,
+    targetProfessions: [],
+    targetIndustries: [],
+    targetCompanySizes: [],
+    targetDevices: [],
+    targetLanguages: [],
+    incidenceRate: 90,
+    estimatedLOI: 3,
+    payoutToUser: 1.0,
+    revenuePerComplete: 2.0,
+    totalQuota: 50_000,
+    remainingQuota: 49_999,
+    surveyPriority: 999,
+    notes:
+      "Seed: open targeting for QA — appears for almost all panel members; example.com destination for safe testing.",
+    dynamicQuotaGroups: [
+      {
+        groupName: "QA — open completes",
+        groupDescription: "Catch-all quota for manual testing",
+        totalQuota: 50_000,
+        remainingQuota: 49_999,
+        status: "active" as const
+      }
+    ]
+  },
   {
     surveyCode: "IM_RETAIL_TRACKER_Q2",
     providerCompanyCode: "DYNATA",

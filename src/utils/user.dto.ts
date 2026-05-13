@@ -1,3 +1,5 @@
+import mongoose from "mongoose";
+import { PanelSurveyAttempt } from "../models/PanelSurveyAttempt";
 import { getPanelPrescreenBundle } from "../services/panel-prescreen.service";
 
 /** Strip secrets and normalize `_id` → `id` for JSON responses */
@@ -26,6 +28,8 @@ export const toPublicUser = (user: unknown) => {
     deletionRequestedAt: plain.deletionRequestedAt ?? null,
     deletionRequestReason: plain.deletionRequestReason ?? null,
     deactivatedAt: plain.deactivatedAt ?? null,
+    panelPoints: typeof plain.panelPoints === "number" ? plain.panelPoints : 0,
+    panelLifetimePoints: typeof plain.panelLifetimePoints === "number" ? plain.panelLifetimePoints : 0,
     createdAt: plain.createdAt,
     updatedAt: plain.updatedAt
   };
@@ -53,10 +57,21 @@ export async function enrichAuthUser(user: unknown) {
   }
 
   const role = (typeof plain.role === "string" ? plain.role : base.role) as string | undefined;
-  const bundle = await getPanelPrescreenBundle(userId, role);
+
+  const oidValid = mongoose.Types.ObjectId.isValid(userId);
+  const [bundle, panelCompletedSurveys] = await Promise.all([
+    getPanelPrescreenBundle(userId, role),
+    oidValid
+      ? PanelSurveyAttempt.countDocuments({
+          userId: new mongoose.Types.ObjectId(userId),
+          status: "completed_rewarded"
+        })
+      : Promise.resolve(0)
+  ]);
   return {
     ...base,
     needsPanelPrescreen: bundle.needsCompletion,
-    panelPrescreenNotConfigured: bundle.notConfigured
+    panelPrescreenNotConfigured: bundle.notConfigured,
+    panelCompletedSurveys
   };
 }

@@ -22,6 +22,9 @@ const userSchema = new mongoose.Schema(
     /** Member panel: completed required prescreen (matches active published required form) */
     panelPrescreenCompletedAt: { type: Date, default: null },
     panelPrescreenFormId: { type: mongoose.Schema.Types.ObjectId, ref: "PrescreenForm", default: null },
+    /** Panel member rewards (points) */
+    panelPoints: { type: Number, default: 0, min: 0 },
+    panelLifetimePoints: { type: Number, default: 0, min: 0 },
     /** Legacy field — migration helper */
     name: { type: String, trim: true }
   },
