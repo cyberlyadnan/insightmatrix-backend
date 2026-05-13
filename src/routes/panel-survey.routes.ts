@@ -8,6 +8,7 @@ import {
   listPanelSurveys,
   patchPanelSurveyStatus,
   postPanelSurveyRoutingEvent,
+  seedDemoPanelSurveys,
   updatePanelSurvey
 } from '../controllers/panel-survey.controller';
 import { authenticate, authorize } from '../middleware/auth.middleware';
@@ -30,6 +31,7 @@ router.use(authenticate);
 router.use(authorize(ROLES.ADMIN, ROLES.SURVEY_MANAGER));
 
 router.get("/", validate(listPanelSurveysSchema), listPanelSurveys);
+router.post("/seed", seedDemoPanelSurveys);
 router.post("/", validate(createPanelSurveySchema), createPanelSurvey);
 router.get("/:id/analytics", validate(paramsIdSchema), getPanelSurveyAnalytics);
 router.post(

@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendResponse } from '../utils/ApiResponse';
+import { executePanelSurveySeed } from '../seeds/panel-surveys.seed';
 import { panelSurveyService } from '../services/panel-survey.service';
 import {
   fetchPanelSurveyAnalyticsReport,
@@ -64,4 +65,13 @@ export const patchPanelSurveyStatus = asyncHandler(async (req, res) => {
 export const deletePanelSurvey = asyncHandler(async (req, res) => {
   await panelSurveyService.deleteById(req.params.id);
   sendResponse(res, { message: "Survey deleted" });
+});
+
+/** Upsert built-in demo panel surveys (dev/QA). Admin or survey_manager only. */
+export const seedDemoPanelSurveys = asyncHandler(async (_req, res) => {
+  const result = await executePanelSurveySeed();
+  sendResponse(res, {
+    message: "Panel survey seed finished",
+    data: result
+  });
 });
