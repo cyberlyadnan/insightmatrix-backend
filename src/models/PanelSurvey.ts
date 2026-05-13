@@ -89,6 +89,8 @@ const panelSurveySchema = new mongoose.Schema(
     dynamicQuotaGroups: [quotaGroupSchema],
 
     surveyPriority: { type: Number, default: 0, index: true },
+    /** Max times a member may start this survey (e.g. after terminate). Completed (rewarded) always blocks further starts. */
+    maxMemberAttempts: { type: Number, default: 2, min: 1, max: 10 },
     startDate: { type: Date, default: null },
     endDate: { type: Date, default: null },
     notes: { type: String, trim: true, maxlength: 16000, default: "" },

@@ -44,6 +44,7 @@ export type PanelSurveyDto = {
   remainingQuota: number;
   dynamicQuotaGroups: PanelSurveyQuotaGroupDto[];
   surveyPriority: number;
+  maxMemberAttempts: number;
   startDate: string | null;
   endDate: string | null;
   notes: string;
@@ -145,6 +146,7 @@ export function toPanelSurveyDto(doc: {
     status: PanelQuotaGroupStatus;
   }>;
   surveyPriority?: number;
+  maxMemberAttempts?: number | null;
   startDate?: Date | null;
   endDate?: Date | null;
   notes?: string;
@@ -182,6 +184,7 @@ export function toPanelSurveyDto(doc: {
     remainingQuota: doc.remainingQuota ?? 0,
     dynamicQuotaGroups: (doc.dynamicQuotaGroups ?? []).map(groupDto),
     surveyPriority: doc.surveyPriority ?? 0,
+    maxMemberAttempts: Math.min(10, Math.max(1, Number(doc.maxMemberAttempts ?? 2))),
     startDate: doc.startDate ? doc.startDate.toISOString() : null,
     endDate: doc.endDate ? doc.endDate.toISOString() : null,
     notes: doc.notes ?? "",

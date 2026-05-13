@@ -45,6 +45,7 @@ const surveyPayload = {
   remainingQuota: Joi.number().integer().min(0).default(0),
   dynamicQuotaGroups: Joi.array().items(quotaGroupSchema).default([]),
   surveyPriority: Joi.number().integer().default(0),
+  maxMemberAttempts: Joi.number().integer().min(1).max(10).default(2),
   startDate: Joi.date().allow(null),
   endDate: Joi.date().allow(null),
   notes: Joi.string().max(16000).allow("", null)
@@ -108,6 +109,7 @@ export const updatePanelSurveySchema = Joi.object({
     remainingQuota: Joi.number().integer().min(0),
     dynamicQuotaGroups: Joi.array().items(quotaGroupSchema),
     surveyPriority: Joi.number().integer(),
+    maxMemberAttempts: Joi.number().integer().min(1).max(10),
     startDate: Joi.date().allow(null),
     endDate: Joi.date().allow(null),
     notes: Joi.string().max(16000).allow("", null)
