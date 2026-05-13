@@ -5,11 +5,13 @@ import {
   deletePrescreen,
   duplicatePrescreen,
   getPrescreenById,
+  getPrescreenSubmissionStats,
   listPrescreenCategories,
   listPrescreens,
   publishPrescreen,
   reorderPrescreenQuestions,
   seedDefaultPrescreens,
+  seedPanelMemberPrescreen,
   unpublishPrescreen,
   updatePrescreen
 } from '../controllers/prescreen.controller';
@@ -32,9 +34,11 @@ router.use(authorize(ROLES.ADMIN, ROLES.SURVEY_MANAGER));
 
 router.get("/", validate(listPrescreensSchema), listPrescreens);
 router.post("/seed-defaults", seedDefaultPrescreens);
+router.post("/seed-panel-member", seedPanelMemberPrescreen);
 router.get("/categories", listPrescreenCategories);
 router.post("/categories", validate(createCategorySchema), createPrescreenCategory);
 router.post("/", validate(createPrescreenSchema), createPrescreen);
+router.get("/:id/submission-stats", validate(paramsIdSchema), getPrescreenSubmissionStats);
 router.get("/:id", validate(paramsIdSchema), getPrescreenById);
 router.patch("/:id", validate(updatePrescreenSchema), updatePrescreen);
 router.delete("/:id", validate(paramsIdSchema), deletePrescreen);

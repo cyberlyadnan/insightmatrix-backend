@@ -19,6 +19,9 @@ const userSchema = new mongoose.Schema(
     deletionRequestedAt: { type: Date, default: null },
     deletionRequestReason: { type: String, trim: true, default: null },
     deactivatedAt: { type: Date, default: null },
+    /** Member panel: completed required prescreen (matches active published required form) */
+    panelPrescreenCompletedAt: { type: Date, default: null },
+    panelPrescreenFormId: { type: mongoose.Schema.Types.ObjectId, ref: "PrescreenForm", default: null },
     /** Legacy field — migration helper */
     name: { type: String, trim: true }
   },

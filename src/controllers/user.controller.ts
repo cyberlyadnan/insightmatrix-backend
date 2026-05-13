@@ -4,7 +4,8 @@ import { ApiError } from '../utils/ApiError';
 import { env } from '../config/env';
 import { userService } from '../services/user.service';
 import { bufferToDataUrl, hasValidCloudinaryConfig, uploadToCloudinary } from '../services/upload.service';
-import { toPublicUser } from '../utils/user.dto';
+import { enrichAuthUser, toPublicUser } from '../utils/user.dto';
+import { getPanelPrescreenBundle, submitPanelPrescreen as persistMemberPanelPrescreen } from '../services/panel-prescreen.service';
 
 export const listUsers = asyncHandler(async (req, res) => {
   const users = await userService.list();
@@ -27,14 +28,34 @@ export const deleteUser = asyncHandler(async (req, res) => {
 });
 
 export const getProfile = asyncHandler(async (req, res) => {
-  sendResponse(res, { data: toPublicUser(req.user) });
+  const user = await enrichAuthUser(req.user);
+  sendResponse(res, { data: user });
+});
+
+export const getMemberPanelPrescreenBundle = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  const bundle = await getPanelPrescreenBundle(String(userId), req.user?.role);
+  sendResponse(res, { data: bundle });
+});
+
+export const submitMemberPanelPrescreen = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  await persistMemberPanelPrescreen(
+    String(userId),
+    req.body.answers as Record<string, unknown>,
+    typeof req.body.durationMs === "number" ? req.body.durationMs : undefined
+  );
+  const user = await enrichAuthUser(req.user);
+  sendResponse(res, { message: "Prescreen saved", data: { user } });
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
   const userId = req.user?._id;
   if (!userId) throw new ApiError(401, "Unauthorized");
   const user = await userService.updateById(String(userId), req.body);
-  sendResponse(res, { message: "Profile updated", data: toPublicUser(user) });
+  sendResponse(res, { message: "Profile updated", data: await enrichAuthUser(user) });
 });
 
 export const uploadProfileAvatar = asyncHandler(async (req, res) => {
@@ -58,7 +79,7 @@ export const uploadProfileAvatar = asyncHandler(async (req, res) => {
   }
 
   const user = await userService.updateById(String(userId), { avatar: avatarUrl });
-  sendResponse(res, { message: "Avatar updated", data: toPublicUser(user) });
+  sendResponse(res, { message: "Avatar updated", data: await enrichAuthUser(user) });
 });
 
 export const changePassword = asyncHandler(async (req, res) => {
@@ -72,14 +93,14 @@ export const requestAccountDeletion = asyncHandler(async (req, res) => {
   const userId = req.user?._id;
   if (!userId) throw new ApiError(401, "Unauthorized");
   const user = await userService.requestAccountDeletion(String(userId), req.body.reason);
-  sendResponse(res, { message: "Account deletion request submitted", data: toPublicUser(user) });
+  sendResponse(res, { message: "Account deletion request submitted", data: await enrichAuthUser(user) });
 });
 
 export const cancelAccountDeletionRequest = asyncHandler(async (req, res) => {
   const userId = req.user?._id;
   if (!userId) throw new ApiError(401, "Unauthorized");
   const user = await userService.cancelAccountDeletionRequest(String(userId));
-  sendResponse(res, { message: "Account deletion request cancelled", data: toPublicUser(user) });
+  sendResponse(res, { message: "Account deletion request cancelled", data: await enrichAuthUser(user) });
 });
 
 export const listDeletionRequests = asyncHandler(async (_req, res) => {

@@ -5,10 +5,20 @@ import { toPrescreenCategoryDto, toPrescreenDto } from '../utils/prescreen.dto';
 
 export const listPrescreens = asyncHandler(async (req, res) => {
   const result = await prescreenService.list(req.validatedQuery ?? req.query);
+  const ids = result.items.map((item) => String(item._id));
+  const counts = await prescreenService.getSubmissionCountsByFormIds(ids);
   sendResponse(res, {
-    data: result.items.map((item) => toPrescreenDto(item)),
+    data: result.items.map((item) => ({
+      ...toPrescreenDto(item),
+      submissionCount: counts.get(String(item._id)) ?? 0
+    })),
     meta: result.meta
   });
+});
+
+export const getPrescreenSubmissionStats = asyncHandler(async (req, res) => {
+  const stats = await prescreenService.getSubmissionStats(req.params.id);
+  sendResponse(res, { data: stats });
 });
 
 export const getPrescreenById = asyncHandler(async (req, res) => {
@@ -67,5 +77,14 @@ export const seedDefaultPrescreens = asyncHandler(async (req, res) => {
     statusCode: 201,
     message: "Default prescreens seeded",
     data: forms.map((item) => toPrescreenDto(item))
+  });
+});
+
+export const seedPanelMemberPrescreen = asyncHandler(async (req, res) => {
+  const form = await prescreenService.seedPanelMemberPrescreen(String(req.user._id));
+  sendResponse(res, {
+    statusCode: 201,
+    message: "Panel member prescreen seeded and published",
+    data: toPrescreenDto(form)
   });
 });

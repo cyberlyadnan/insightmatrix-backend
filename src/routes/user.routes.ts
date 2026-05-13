@@ -4,11 +4,13 @@ import {
   cancelAccountDeletionRequest,
   changePassword,
   deleteUser,
+  getMemberPanelPrescreenBundle,
   getProfile,
   getUser,
   listDeletionRequests,
   listUsers,
   requestAccountDeletion,
+  submitMemberPanelPrescreen,
   updateProfile,
   updateUser,
   uploadProfileAvatar
@@ -21,6 +23,7 @@ import {
   updateProfileSchema,
   updateUserSchema
 } from '../validations/user.validation';
+import { submitPanelPrescreenSchema } from '../validations/panel-prescreen.validation';
 import { ROLES } from '../constants/roles';
 import { upload } from '../services/upload.service';
 
@@ -28,6 +31,8 @@ const router = Router();
 
 router.use(authenticate);
 router.get("/profile", getProfile);
+router.get("/panel-prescreen", getMemberPanelPrescreenBundle);
+router.post("/panel-prescreen/submit", validate(submitPanelPrescreenSchema), submitMemberPanelPrescreen);
 router.patch("/profile", validate(updateProfileSchema), updateProfile);
 router.post("/profile/avatar", upload.single("avatar"), uploadProfileAvatar);
 router.post("/profile/change-password", validate(changePasswordSchema), changePassword);

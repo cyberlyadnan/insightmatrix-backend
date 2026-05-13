@@ -1,7 +1,11 @@
+import { Types } from 'mongoose';
 import { ApiError } from '../utils/ApiError';
 import { PrescreenForm } from '../models/PrescreenForm';
 import { PrescreenCategory } from '../models/PrescreenCategory';
+import { PrescreenSubmission } from '../models/PrescreenSubmission';
 import { paginatePrescreens, type PrescreenListQuery } from '../utils/query/prescreen-query';
+import { clearOtherRequiredPanelFlags } from './panel-prescreen.service';
+import { buildMemberPanelQuestions } from '../utils/member-panel-questions';
 
 function slugify(text: string) {
   return text
@@ -10,6 +14,19 @@ function slugify(text: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
+}
+
+function formatDurationMs(ms: number) {
+  const s = Math.round(ms / 1000);
+  const m = Math.floor(s / 60);
+  const rs = s % 60;
+  if (m >= 60) {
+    const h = Math.floor(m / 60);
+    const rm = m % 60;
+    return `${h}h ${rm}m ${rs}s`;
+  }
+  if (m > 0) return `${m}m ${rs}s`;
+  return `${rs}s`;
 }
 
 async function ensureUniqueSlug(base: string, excludeId?: string) {
@@ -121,6 +138,9 @@ export const prescreenService = {
     }
     const form = await PrescreenForm.findByIdAndUpdate(id, nextPayload, { new: true });
     if (!form) throw new ApiError(404, "Prescreen form not found");
+    if (form.status === "published" && form.isRequiredForPanel) {
+      await clearOtherRequiredPanelFlags(String(form._id));
+    }
     return form;
   },
   deleteById: async (id: string) => {
@@ -130,6 +150,9 @@ export const prescreenService = {
   setStatus: async (id: string, status: "draft" | "published") => {
     const form = await PrescreenForm.findByIdAndUpdate(id, { status }, { new: true });
     if (!form) throw new ApiError(404, "Prescreen form not found");
+    if (status === "published" && form.isRequiredForPanel) {
+      await clearOtherRequiredPanelFlags(String(form._id));
+    }
     return form;
   },
   duplicate: async (id: string, createdBy: string) => {
@@ -144,6 +167,7 @@ export const prescreenService = {
       title,
       slug,
       status: "draft",
+      isRequiredForPanel: false,
       createdBy
     });
   },
@@ -245,5 +269,110 @@ export const prescreenService = {
 
     const forms = await Promise.all(operations);
     return forms;
+  },
+  /**
+   * Upserts the canonical published panel profile prescreen (required for member surveys).
+   */
+  seedPanelMemberPrescreen: async (createdBy: string) => {
+    const slug = "panel-member-profile";
+    const seed = "pm_prof_v1";
+    const questions = buildMemberPanelQuestions(seed);
+    const form = await PrescreenForm.findOneAndUpdate(
+      { slug },
+      {
+        $set: {
+          title: "Member profile prescreen",
+          description:
+            "Standard demographic and participation profile used to match you with relevant surveys. Required once before taking panel surveys.",
+          status: "published",
+          visibility: "public",
+          isRequiredForPanel: true,
+          tags: ["panel", "required", "demographics", "profiling"],
+          targetAudience: {
+            ageGroups: [],
+            countries: [],
+            industries: [],
+            professions: [],
+            vendors: [],
+            customSegments: []
+          },
+          settings: {
+            collectEmail: false,
+            allowEditAfterSubmit: false,
+            showProgressBar: true
+          },
+          questions,
+          createdBy
+        },
+        $setOnInsert: { slug }
+      },
+      { new: true, upsert: true }
+    );
+    if (!form) throw new ApiError(500, "Could not seed panel prescreen");
+    await clearOtherRequiredPanelFlags(String(form._id));
+    return form;
+  },
+
+  /** Submission row counts per form id (for admin list). */
+  getSubmissionCountsByFormIds: async (formIds: string[]) => {
+    const map = new Map<string, number>();
+    const valid = formIds.filter((id) => Types.ObjectId.isValid(id));
+    if (!valid.length) return map;
+    const oids = valid.map((id) => new Types.ObjectId(id));
+    const rows = await PrescreenSubmission.aggregate<{ _id: Types.ObjectId; count: number }>([
+      { $match: { formId: { $in: oids } } },
+      { $group: { _id: "$formId", count: { $sum: 1 } } }
+    ]);
+    for (const r of rows) {
+      map.set(String(r._id), r.count);
+    }
+    return map;
+  },
+
+  /** Aggregated submission analytics for a single prescreen form (admin). */
+  getSubmissionStats: async (formId: string) => {
+    if (!Types.ObjectId.isValid(formId)) throw new ApiError(400, "Invalid prescreen id");
+    const form = await PrescreenForm.findById(formId).select("_id");
+    if (!form) throw new ApiError(404, "Prescreen form not found");
+    const oid = new Types.ObjectId(formId);
+
+    const [totalSubmissions, distinctUserIds, durAgg, bounds] = await Promise.all([
+      PrescreenSubmission.countDocuments({ formId: oid }),
+      PrescreenSubmission.distinct("userId", { formId: oid }),
+      PrescreenSubmission.aggregate<{ avgMs?: number; withDur?: number }>([
+        {
+          $match: {
+            formId: oid,
+            durationMs: { $type: "number", $gte: 0 }
+          }
+        },
+        { $group: { _id: null, avgMs: { $avg: "$durationMs" }, withDur: { $sum: 1 } } }
+      ]),
+      PrescreenSubmission.aggregate<{ firstAt?: Date; lastAt?: Date }>([
+        { $match: { formId: oid } },
+        {
+          $group: {
+            _id: null,
+            firstAt: { $min: "$submittedAt" },
+            lastAt: { $max: "$submittedAt" }
+          }
+        }
+      ])
+    ]);
+
+    const drow = durAgg[0];
+    const avgMs = drow?.avgMs != null && Number.isFinite(drow.avgMs) ? Math.round(drow.avgMs) : null;
+    const submissionsWithDuration = drow?.withDur ?? 0;
+    const brow = bounds[0];
+
+    return {
+      totalSubmissions,
+      uniqueSubmitters: distinctUserIds.length,
+      submissionsWithDuration,
+      averageDurationMs: avgMs,
+      averageDurationFormatted: avgMs != null ? formatDurationMs(avgMs) : null,
+      firstSubmittedAt: brow?.firstAt ?? null,
+      lastSubmittedAt: brow?.lastAt ?? null
+    };
   }
 };

@@ -92,6 +92,8 @@ const prescreenFormSchema = new mongoose.Schema(
       showProgressBar: { type: Boolean, default: true }
     },
     questions: { type: [questionSchema], default: [] },
+    /** Only one published prescreen should have this — used to gate member dashboard surveys */
+    isRequiredForPanel: { type: Boolean, default: false, index: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true }
   },
   { timestamps: true }

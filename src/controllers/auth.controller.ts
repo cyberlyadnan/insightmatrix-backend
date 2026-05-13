@@ -4,6 +4,8 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { sendResponse } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
 import { authService } from '../services/auth.service';
+import { userRepository } from '../repositories/user.repository';
+import { enrichAuthUser } from '../utils/user.dto';
 import { baseCookieOptions, jwtDurationToMs } from '../utils/cookie-settings';
 
 function setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
@@ -29,17 +31,20 @@ export const register = asyncHandler(async (req, res) => {
   if (result.accessToken && result.refreshToken) {
     setAuthCookies(res, result.accessToken, result.refreshToken);
   }
+  const fresh = result.user?.email ? await userRepository.findByEmail(result.user.email) : null;
+  const userPayload = fresh ? await enrichAuthUser(fresh) : result.user;
   sendResponse(res, {
     statusCode: 201,
     message: result.accessToken ? "Registration successful" : "Please verify your email to continue.",
-    data: { user: result.user }
+    data: { user: userPayload }
   });
 });
 
 export const login = asyncHandler(async (req, res) => {
   const { user, accessToken, refreshToken } = await authService.login(req.body);
   setAuthCookies(res, accessToken, refreshToken);
-  sendResponse(res, { message: "Login successful", data: { user } });
+  const userPayload = await enrichAuthUser(user);
+  sendResponse(res, { message: "Login successful", data: { user: userPayload } });
 });
 
 export const refresh = asyncHandler(async (req, res) => {

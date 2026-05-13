@@ -61,7 +61,8 @@ const prescreenBodySchema = Joi.object({
     allowEditAfterSubmit: Joi.boolean().default(false),
     showProgressBar: Joi.boolean().default(true)
   }).default({}),
-  questions: Joi.array().items(questionSchema).default([])
+  questions: Joi.array().items(questionSchema).default([]),
+  isRequiredForPanel: Joi.boolean().default(false)
 });
 
 export const listPrescreensSchema = Joi.object({

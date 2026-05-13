@@ -26,6 +26,7 @@ export function toPrescreenDto(form: unknown) {
     visibility: plain.visibility ?? "internal",
     settings: plain.settings ?? {},
     questions: Array.isArray(plain.questions) ? plain.questions : [],
+    isRequiredForPanel: Boolean(plain.isRequiredForPanel),
     createdBy: plain.createdBy ?? null,
     createdAt: plain.createdAt,
     updatedAt: plain.updatedAt
