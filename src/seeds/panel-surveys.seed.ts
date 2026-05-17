@@ -19,6 +19,49 @@ export type PanelSurveySeedResult = {
 
 const SEED_SURVEYS = [
   /**
+   * General audience study: same “open” targeting as QA seeds (no country / age / profession /
+   * industry / device filters) so every matched panel member can see it. `payoutToUser: 1` maps to
+   * **100 points** in member UI (`pointsFromPayout`: round(1 × 100)).
+   */
+  {
+    surveyCode: "IM_GENERAL_ALL_100PTS",
+    providerCompanyCode: "DYNATA",
+    surveyName: "General community pulse — 100 points (all members)",
+    externalSurveyId: "EXT-IM-GENERAL-100",
+    surveyStatus: "active" as const,
+    externalSurveyUrl:
+      "https://example.com/panel/general-pulse?study=general&pid=IM_GENERAL_ALL_100_PID",
+    trackingParameterName: "toid",
+    participantQueryParam: "pid",
+    targetCountries: [],
+    targetGender: "all" as const,
+    targetAgeMin: null,
+    targetAgeMax: null,
+    targetProfessions: [],
+    targetIndustries: [],
+    targetCompanySizes: [],
+    targetDevices: [],
+    targetLanguages: [],
+    incidenceRate: 50,
+    estimatedLOI: 8,
+    payoutToUser: 1,
+    revenuePerComplete: 1.5,
+    totalQuota: 100_000,
+    remainingQuota: 99_999,
+    surveyPriority: 1000,
+    notes:
+      "Seed: general survey visible to all panel members (open targeting); 100 pts reward per platform payout→points mapping.",
+    dynamicQuotaGroups: [
+      {
+        groupName: "General completes",
+        groupDescription: "Open quota for the general community survey",
+        totalQuota: 100_000,
+        remainingQuota: 99_999,
+        status: "active" as const
+      }
+    ]
+  },
+  /**
    * Broad-match QA survey: no country / age / profession / industry / device filters in
    * `surveyMatchesMemberProfile` — any member with a completed required prescreen should see it.
    * Use to verify dashboard → surveys → start page. URL must include `pid=` for supplierProjectPid.
