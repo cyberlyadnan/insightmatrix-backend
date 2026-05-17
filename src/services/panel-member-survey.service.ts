@@ -136,10 +136,17 @@ export async function startPanelSurveyAttempt(userId: string, surveyId: string, 
   const profile = await getMemberPanelProfileForMatching(userId);
   if (!profile) throw new ApiError(400, "Complete your profile prescreen first.");
 
-  const survey = await PanelSurvey.findById(surveyId).populate("providerId", "companyName companyCode").lean();
-  if (!survey || survey.surveyStatus !== "active" || (survey.remainingQuota ?? 0) <= 0) {
+  const { validatePanelSurveyForRouting } = await import("./routing/routing-gateway.service");
+  try {
+    await validatePanelSurveyForRouting(surveyId);
+  } catch {
     throw new ApiError(404, "Survey not available");
   }
+
+  const survey = await PanelSurvey.findById(surveyId)
+    .populate("providerId", "companyName companyCode")
+    .lean();
+  if (!survey) throw new ApiError(404, "Survey not available");
 
   if (!surveyMatchesMemberProfile(survey, profile)) {
     throw new ApiError(403, "You are not eligible for this survey based on your profile.");

@@ -19,7 +19,7 @@ export type VendorCallbackRelayContext = {
 export type VendorCallbackRelayResult = {
   dispatched: boolean;
   targetUrl: string | null;
-  skippedReason?: "not_configured" | "vendor_paused" | "relay_disabled";
+  skippedReason?: "not_configured" | "vendor_paused" | "relay_disabled" | "delivery_failed";
 };
 
 /**

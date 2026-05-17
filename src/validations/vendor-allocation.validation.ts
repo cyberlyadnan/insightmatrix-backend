@@ -1,66 +1,88 @@
 import Joi from "joi";
 import { VENDOR_ALLOCATION_STATUSES } from "../constants/vendor-allocation";
 
-export const listVendorAllocationsSchema = {
+const emptyObject = Joi.object({}).required();
+
+export const listVendorAllocationsSchema = Joi.object({
+  body: Joi.object({}).optional(),
+  params: emptyObject,
   query: Joi.object({
     page: Joi.number().integer().min(1).default(1),
     pageSize: Joi.number().integer().min(1).max(100).default(20),
     panelSurveyId: Joi.string().hex().length(24),
     vendorId: Joi.string().hex().length(24),
     status: Joi.string().valid(...VENDOR_ALLOCATION_STATUSES),
-    search: Joi.string().trim().max(200)
-  })
-};
+    search: Joi.string().trim().max(200).allow("")
+  }).required()
+});
 
-export const vendorAllocationIdParamsSchema = {
+export const vendorAllocationIdParamsSchema = Joi.object({
+  body: Joi.object({}).optional(),
   params: Joi.object({
     id: Joi.string().hex().length(24).required()
-  })
+  }).required(),
+  query: emptyObject
+});
+
+const allocationBodyFields = {
+  panelSurveyId: Joi.string().hex().length(24).required(),
+  vendorId: Joi.string().hex().length(24).required(),
+  allocatedQuota: Joi.number().integer().min(1).required(),
+  vendorCpi: Joi.number().min(0).optional(),
+  clientCpi: Joi.number().min(0).optional(),
+  startDate: Joi.alternatives().try(Joi.date().iso(), Joi.valid(null)).optional(),
+  endDate: Joi.alternatives().try(Joi.date().iso(), Joi.valid(null)).optional(),
+  notes: Joi.string().trim().max(8000).allow("", null).optional()
 };
 
-export const createVendorAllocationSchema = {
-  body: Joi.object({
-    panelSurveyId: Joi.string().hex().length(24).required(),
-    vendorId: Joi.string().hex().length(24).required(),
-    allocatedQuota: Joi.number().integer().min(1).required(),
-    vendorCpi: Joi.number().min(0),
-    clientCpi: Joi.number().min(0),
-    startDate: Joi.date().iso().allow(null),
-    endDate: Joi.date().iso().allow(null),
-    notes: Joi.string().trim().max(8000).allow("")
-  })
-};
+export const createVendorAllocationSchema = Joi.object({
+  body: Joi.object(allocationBodyFields).required(),
+  params: emptyObject,
+  query: emptyObject
+});
 
-export const updateVendorAllocationSchema = {
-  params: Joi.object({
-    id: Joi.string().hex().length(24).required()
-  }),
+export const updateVendorAllocationSchema = Joi.object({
   body: Joi.object({
     allocatedQuota: Joi.number().integer().min(1),
     vendorCpi: Joi.number().min(0),
     clientCpi: Joi.number().min(0),
-    startDate: Joi.date().iso().allow(null),
-    endDate: Joi.date().iso().allow(null),
-    notes: Joi.string().trim().max(8000).allow("")
-  }).min(1)
-};
+    startDate: Joi.alternatives().try(Joi.date().iso(), Joi.valid(null)),
+    endDate: Joi.alternatives().try(Joi.date().iso(), Joi.valid(null)),
+    notes: Joi.string().trim().max(8000).allow("", null)
+  })
+    .min(1)
+    .required(),
+  params: Joi.object({
+    id: Joi.string().hex().length(24).required()
+  }).required(),
+  query: emptyObject
+});
 
-export const vendorRoutingStartSchema = {
+export const vendorRoutingStartSchema = Joi.object({
   body: Joi.object({
     allocationCode: Joi.string().trim().min(4).max(32).required(),
     vendorRespondentId: Joi.string().trim().max(500).allow(""),
     trafficSource: Joi.string().trim().max(500).allow("")
-  })
-};
+  }).required(),
+  params: emptyObject,
+  query: emptyObject
+});
 
-export const panelSurveyIdAllocationsParamsSchema = {
+export const panelSurveyIdAllocationsParamsSchema = Joi.object({
+  body: Joi.object({}).optional(),
   params: Joi.object({
     surveyId: Joi.string().hex().length(24).required()
-  })
-};
+  }).required(),
+  query: Joi.object({
+    page: Joi.number().integer().min(1),
+    pageSize: Joi.number().integer().min(1).max(100)
+  }).required()
+});
 
-export const vendorPortalAllocationIdParamsSchema = {
+export const vendorPortalAllocationIdParamsSchema = Joi.object({
+  body: Joi.object({}).optional(),
   params: Joi.object({
     allocationId: Joi.string().hex().length(24).required()
-  })
-};
+  }).required(),
+  query: emptyObject
+});

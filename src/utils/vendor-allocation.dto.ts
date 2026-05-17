@@ -88,6 +88,15 @@ function iso(d: unknown): string | null {
   return Number.isNaN(t.getTime()) ? null : t.toISOString();
 }
 
+/** ObjectId or populated subdocument → string id */
+function refId(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "object" && "_id" in (value as object)) {
+    return String((value as { _id: unknown })._id);
+  }
+  return String(value);
+}
+
 function surveySummary(s: Record<string, unknown> | null | undefined): VendorAllocationSurveySummary | null {
   if (!s?._id) return null;
   return {
@@ -120,10 +129,20 @@ export function toVendorSurveyAllocationDto(
   return {
     id: String(doc._id),
     allocationCode: String(doc.allocationCode ?? ""),
-    panelSurveyId: String(doc.panelSurveyId ?? ""),
-    vendorId: String(doc.vendorId ?? ""),
-    panelSurvey: surveySummary(opts?.panelSurvey ?? (doc.panelSurveyId as Record<string, unknown>)),
-    vendor: vendorSummary(opts?.vendor ?? (doc.vendorId as Record<string, unknown>)),
+    panelSurveyId: refId(doc.panelSurveyId),
+    vendorId: refId(doc.vendorId),
+    panelSurvey: surveySummary(
+      opts?.panelSurvey ??
+        (typeof doc.panelSurveyId === "object" && doc.panelSurveyId !== null
+          ? (doc.panelSurveyId as Record<string, unknown>)
+          : null)
+    ),
+    vendor: vendorSummary(
+      opts?.vendor ??
+        (typeof doc.vendorId === "object" && doc.vendorId !== null
+          ? (doc.vendorId as Record<string, unknown>)
+          : null)
+    ),
     status: doc.status as VendorAllocationStatus,
     allocatedQuota: Number(doc.allocatedQuota ?? 0),
     startedCount: Number(doc.startedCount ?? 0),
