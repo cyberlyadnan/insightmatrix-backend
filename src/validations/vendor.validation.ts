@@ -15,7 +15,7 @@ const vendorCreateBody = {
   companyName: Joi.string().min(2).max(200).required(),
   contactPerson: Joi.string().max(120).allow("", null),
   email: Joi.string().trim().email().max(254).required(),
-  password: Joi.string().min(8).max(128).required(),
+  password: Joi.string().trim().min(8).max(128).required(),
   phone: Joi.string().max(40).allow("", null),
   website: optionalUrl,
   callbackUrls: callbackUrlsSchema,
@@ -64,7 +64,7 @@ export const updateVendorSchema = Joi.object({
     allowedCountries: Joi.array().items(Joi.string().trim().max(8)).max(300),
     notes: Joi.string().max(16000).allow("", null),
     status: Joi.string().valid(...VENDOR_STATUSES),
-    password: Joi.string().min(8).max(128).allow("", null)
+    password: Joi.string().trim().min(8).max(128).allow("", null)
   }).required(),
   params: Joi.object({ id: Joi.string().hex().length(24).required() }).required(),
   query: Joi.object({}).required()

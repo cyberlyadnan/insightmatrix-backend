@@ -21,6 +21,9 @@ export const vendorRepository = {
   updateById: (id: string, payload: Record<string, unknown>) =>
     Vendor.findByIdAndUpdate(id, payload, { new: true, runValidators: true }),
 
+  setPasswordHash: (id: string, passwordHash: string) =>
+    Vendor.findByIdAndUpdate(id, { $set: { passwordHash } }, { new: true }),
+
   deleteById: (id: string) => Vendor.findByIdAndDelete(id),
 
   count: (filter: VendorFilter) => Vendor.countDocuments(filter),

@@ -25,10 +25,13 @@ async function issueVendorTokens(vendor: { _id: { toString(): string }; email: s
 export const vendorAuthService = {
   login: async (payload: { email: string; password: string }) => {
     const email = payload.email.trim().toLowerCase();
+    const password = payload.password?.trim() ?? "";
+    if (!email || !password) throw new ApiError(401, "Invalid email or password");
+
     const vendor = await vendorRepository.findByEmail(email, true);
     if (!vendor?.passwordHash) throw new ApiError(401, "Invalid email or password");
 
-    const ok = await comparePassword(payload.password, vendor.passwordHash);
+    const ok = await comparePassword(password, vendor.passwordHash);
     if (!ok) throw new ApiError(401, "Invalid email or password");
 
     if (vendor.status === "suspended") {

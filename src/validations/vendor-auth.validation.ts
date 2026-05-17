@@ -13,7 +13,7 @@ const callbackUrlsSchema = Joi.object(
 export const vendorLoginSchema = Joi.object({
   body: Joi.object({
     email: Joi.string().trim().email().max(254).required(),
-    password: Joi.string().min(8).max(128).required()
+    password: Joi.string().trim().min(8).max(128).required()
   }).required(),
   params: Joi.object({}).required(),
   query: Joi.object({}).required()

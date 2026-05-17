@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { ApiError } from "../utils/ApiError";
 import { hashPassword } from "../utils/password";
 import { generateNextVendorCode } from "../utils/vendor-code";
+import { VendorRefreshToken } from "../models/VendorRefreshToken";
 import { vendorRepository, type VendorFilter } from "../repositories/vendor.repository";
 import type { VendorStatus } from "../constants/vendor";
 import type { VendorCallbackUrls } from "../types/vendor-callback";
@@ -55,6 +56,11 @@ export const vendorService = {
     createdBy?: string
   ) => {
     const email = payload.email.trim().toLowerCase();
+    const rawPassword = payload.password?.trim() ?? "";
+    if (rawPassword.length < 8) {
+      throw new ApiError(400, "Password must be at least 8 characters");
+    }
+
     const existing = await vendorRepository.findByEmail(email);
     if (existing) throw new ApiError(409, "A vendor with this email already exists");
 
@@ -68,7 +74,7 @@ export const vendorService = {
         companyName: payload.companyName.trim(),
         contactPerson: payload.contactPerson?.trim() ?? "",
         email,
-        passwordHash: await hashPassword(payload.password),
+        passwordHash: await hashPassword(rawPassword),
         phone: payload.phone?.trim() ?? "",
         website: payload.website?.trim() ?? "",
         status: payload.status ?? "active",
@@ -152,14 +158,12 @@ export const vendorService = {
       update.allowedCountries = normalizeStringArray(update.allowedCountries);
     }
 
-    delete update.passwordHash;
+    let nextPassword = "";
     if (typeof update.password === "string") {
-      const nextPassword = update.password.trim();
-      if (nextPassword) {
-        update.passwordHash = await hashPassword(nextPassword);
-      }
+      nextPassword = update.password.trim();
     }
     delete update.password;
+    delete update.passwordHash;
     delete update.vendorCode;
     delete update.vendorUid;
     delete update.callbackBaseUrl;
@@ -170,6 +174,11 @@ export const vendorService = {
     }
 
     try {
+      if (nextPassword) {
+        await vendorRepository.setPasswordHash(id, await hashPassword(nextPassword));
+        await VendorRefreshToken.deleteMany({ vendorId: id });
+      }
+
       const doc = await vendorRepository.updateById(id, update);
       if (!doc) throw new ApiError(404, "Vendor not found");
       return doc;
