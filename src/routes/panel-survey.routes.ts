@@ -22,6 +22,11 @@ import {
   patchPanelSurveyStatusSchema,
   updatePanelSurveySchema
 } from '../validations/panel-survey.validation';
+import {
+  getPanelSurveyVendorAllocations,
+  getPanelSurveyVendorAllocationSummary
+} from '../controllers/vendor-allocation.controller';
+import { panelSurveyIdAllocationsParamsSchema } from '../validations/vendor-allocation.validation';
 
 const router = Router();
 
@@ -34,6 +39,16 @@ router.get("/", validate(listPanelSurveysSchema), listPanelSurveys);
 router.post("/seed", seedDemoPanelSurveys);
 router.post("/", validate(createPanelSurveySchema), createPanelSurvey);
 router.get("/:id/analytics", validate(paramsIdSchema), getPanelSurveyAnalytics);
+router.get(
+  "/:surveyId/vendor-allocations",
+  validate(panelSurveyIdAllocationsParamsSchema),
+  getPanelSurveyVendorAllocations
+);
+router.get(
+  "/:surveyId/vendor-allocations/summary",
+  validate(panelSurveyIdAllocationsParamsSchema),
+  getPanelSurveyVendorAllocationSummary
+);
 router.post(
   "/:id/analytics/events",
   validate(panelSurveyRoutingEventSchema),

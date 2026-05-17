@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendResponse } from '../utils/ApiResponse';
 import { recordRoutingEventBySupplierProjectPid } from '../services/panel-survey-analytics.service';
+import { tryApplyOutcomeFromRoutingEvent } from '../services/vendor-allocation/session-tracking.service';
 
 /**
  * Unauthenticated endpoint for routing outcomes (browser landing pages POST here).
@@ -14,6 +15,11 @@ export const postPublicRoutingCallback = asyncHandler(async (req, res) => {
     supplierParticipantRef: req.body.supplierParticipantRef,
     meta: req.body.meta ?? null
   });
+
+  await tryApplyOutcomeFromRoutingEvent(
+    req.body.supplierParticipantRef,
+    req.body.eventType
+  ).catch(() => {});
 
   sendResponse(res, {
     statusCode: 201,

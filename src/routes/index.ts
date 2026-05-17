@@ -14,6 +14,7 @@ import publicRoutes from './public.routes';
 import vendorRoutes from './vendor.routes';
 import vendorAuthRoutes from './vendor-auth.routes';
 import vendorPortalRoutes from './vendor-portal.routes';
+import vendorAllocationRoutes from './vendor-allocation.routes';
 
 const router = Router();
 
@@ -32,6 +33,7 @@ router.use("/panel-book", panelBookRoutes);
 router.use("/vendors", vendorRoutes);
 router.use("/vendor-auth", vendorAuthRoutes);
 router.use("/vendor-portal", vendorPortalRoutes);
+router.use("/vendor-allocations", vendorAllocationRoutes);
 
 export default router;
 

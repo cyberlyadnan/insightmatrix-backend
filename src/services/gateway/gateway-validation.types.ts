@@ -7,9 +7,12 @@ export type GatewayValidationContext = {
   surveyId?: string;
   panelSurveyId?: string;
   vendorId?: string;
+  /** Vendor allocation code (ALLOC-1001) for vendor routing gateway */
+  allocationCode?: string;
   assignmentId?: string;
   participantRef?: string;
   ipAddress?: string;
+  sourceIp?: string;
   countryCode?: string;
   userAgent?: string;
   deviceFingerprint?: string;
