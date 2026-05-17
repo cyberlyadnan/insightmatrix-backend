@@ -15,6 +15,9 @@ const schema = Joi.object({
   JWT_REFRESH_SECRET: Joi.string().required(),
   JWT_ACCESS_EXPIRES_IN: Joi.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default("7d"),
+  /** Optional separate secrets for B2B vendor JWTs (fallback to JWT_* when empty) */
+  VENDOR_JWT_ACCESS_SECRET: Joi.string().allow(""),
+  VENDOR_JWT_REFRESH_SECRET: Joi.string().allow(""),
   JWT_RESET_PASSWORD_EXPIRES_MIN: Joi.number().default(30),
   SKIP_EMAIL_VERIFICATION: Joi.string().valid("true", "false").default("false"),
   COOKIE_DOMAIN: Joi.string().allow(""),

@@ -11,6 +11,9 @@ import panelSurveyRoutes from './panel-survey.routes';
 import companySurveyPaymentRoutes from './company-survey-payment.routes';
 import panelBookRoutes from './panel-book.routes';
 import publicRoutes from './public.routes';
+import vendorRoutes from './vendor.routes';
+import vendorAuthRoutes from './vendor-auth.routes';
+import vendorPortalRoutes from './vendor-portal.routes';
 
 const router = Router();
 
@@ -26,6 +29,9 @@ router.use("/survey-companies", surveyCompanyRoutes);
 router.use("/panel-surveys", panelSurveyRoutes);
 router.use("/company-payments", companySurveyPaymentRoutes);
 router.use("/panel-book", panelBookRoutes);
+router.use("/vendors", vendorRoutes);
+router.use("/vendor-auth", vendorAuthRoutes);
+router.use("/vendor-portal", vendorPortalRoutes);
 
 export default router;
 
