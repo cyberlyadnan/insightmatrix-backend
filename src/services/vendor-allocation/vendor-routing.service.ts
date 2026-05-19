@@ -11,8 +11,11 @@ export type VendorRoutingStartInput = {
 
 export type VendorRoutingStartResult = {
   sessionToken: string;
-  redirectUrl: string;
-  allocationCode: string;
+  redirectUrl?: string;
+  allocationCode?: string;
+  requiresPrescreen?: boolean;
+  profileId?: string;
+  prescreenForm?: unknown;
 };
 
 /**
@@ -25,7 +28,10 @@ export async function startVendorRoutingSession(
   return {
     sessionToken: result.sessionToken,
     redirectUrl: result.redirectUrl,
-    allocationCode: result.allocationCode ?? ""
+    allocationCode: result.allocationCode,
+    requiresPrescreen: result.requiresPrescreen,
+    profileId: result.profileId,
+    prescreenForm: result.prescreenForm
   };
 }
 

@@ -18,10 +18,14 @@ export const postVendorRoutingStart = asyncHandler(async (req, res) => {
 
   sendResponse(res, {
     statusCode: 201,
-    message: "Session created",
+    message: result.requiresPrescreen ? "Prescreen required" : "Session created",
     data: {
       sessionToken: result.sessionToken,
-      redirectUrl: result.redirectUrl
+      redirectUrl: result.redirectUrl,
+      requiresPrescreen: result.requiresPrescreen ?? false,
+      profileId: result.profileId,
+      prescreenForm: result.prescreenForm,
+      allocationCode: result.allocationCode
     }
   });
 });

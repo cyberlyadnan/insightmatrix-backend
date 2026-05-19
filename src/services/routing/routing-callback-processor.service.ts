@@ -7,6 +7,7 @@ import { relayVendorCallbackForSession } from "../vendor-callback/vendor-callbac
 import { Vendor } from "../../models/Vendor";
 import { logGatewayEvent } from "./routing-gateway.service";
 import { routingSessionService } from "./routing-session.service";
+import { surveyRespondentProfileService } from "../survey-respondent-profile/survey-respondent-profile.service";
 
 export type SupplierCallbackPayload = {
   supplierProjectPid: string;
@@ -56,6 +57,9 @@ export async function processSupplierCallback(
   });
 
   await tryApplyOutcomeFromRoutingEvent(participantRef, payload.eventType).catch(() => {});
+  await surveyRespondentProfileService
+    .applyOutcomeFromRoutingEvent(participantRef, payload.eventType)
+    .catch(() => {});
 
   const resolved = await routingSessionService.resolveByParticipantRef(participantRef);
 

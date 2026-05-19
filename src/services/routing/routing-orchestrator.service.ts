@@ -6,6 +6,9 @@ import {
 } from "./routing-gateway.service";
 import { routingRedirectService } from "./routing-redirect.service";
 import { routingSessionService } from "./routing-session.service";
+import { getUniversalRoutingPrescreenForm } from "../prescreen/universal-prescreen.service";
+import { surveyRespondentProfileService } from "../survey-respondent-profile/survey-respondent-profile.service";
+import { toPrescreenDto } from "../../utils/prescreen.dto";
 
 export type VendorGatewayStartInput = {
   routingSlug: string;
@@ -25,9 +28,12 @@ export type PanelGatewayRedirectInput = {
 
 export type GatewayRedirectResult = {
   sessionToken: string;
-  redirectUrl: string;
+  redirectUrl?: string;
   channel: "panel" | "vendor";
   allocationCode?: string;
+  requiresPrescreen?: boolean;
+  profileId?: string;
+  prescreenForm?: ReturnType<typeof toPrescreenDto> | null;
 };
 
 async function logValidationFailure(
@@ -45,6 +51,32 @@ async function logValidationFailure(
   });
 }
 
+async function buildPrescreenGateResponse(
+  channel: "panel" | "vendor",
+  sessionToken: string,
+  profileId: string,
+  extra?: Partial<GatewayRedirectResult>
+): Promise<GatewayRedirectResult> {
+  const prescreen = await getUniversalRoutingPrescreenForm();
+  if (!prescreen.configured) {
+    return {
+      sessionToken,
+      channel,
+      requiresPrescreen: false,
+      profileId,
+      ...extra
+    };
+  }
+  return {
+    sessionToken,
+    channel,
+    requiresPrescreen: true,
+    profileId,
+    prescreenForm: prescreen.formDto,
+    ...extra
+  };
+}
+
 export const routingOrchestratorService = {
   async startVendorTraffic(input: VendorGatewayStartInput): Promise<GatewayRedirectResult> {
     const ctx = { sourceIp: input.sourceIp, userAgent: input.userAgent };
@@ -58,6 +90,35 @@ export const routingOrchestratorService = {
         sourceIp: input.sourceIp,
         userAgent: input.userAgent
       });
+
+      const profile = await surveyRespondentProfileService.createForVendorSession({
+        panelSurveyId: validated.surveyId,
+        allocationId: validated.allocationId,
+        vendorId: validated.vendorId,
+        vendorRespondentSessionId: session.sessionId,
+        vendorRespondentToid: session.vendorRespondentToid,
+        internalSessionToken: session.internalSessionToken,
+        trafficSource: input.trafficSource,
+        sourceIp: input.sourceIp
+      });
+
+      const prescreen = await getUniversalRoutingPrescreenForm();
+      if (prescreen.configured) {
+        await logGatewayEvent({
+          channel: "vendor",
+          action: "prescreen_required",
+          success: true,
+          panelSurveyId: validated.surveyId,
+          vendorId: validated.vendorId,
+          allocationId: validated.allocationId,
+          sessionToken: session.internalSessionToken,
+          metadata: { profileId: String(profile._id) }
+        });
+
+        return buildPrescreenGateResponse("vendor", session.internalSessionToken, String(profile._id), {
+          allocationCode: validated.allocationCode
+        });
+      }
 
       const redirectUrl = routingRedirectService.buildSupplierRedirectUrl(
         validated.externalSurveyUrl,
@@ -90,6 +151,8 @@ export const routingOrchestratorService = {
         sessionToken: session.internalSessionToken,
         redirectUrl,
         channel: "vendor",
+        requiresPrescreen: false,
+        profileId: String(profile._id),
         allocationCode: validated.allocationCode
       };
     } catch (err) {
@@ -102,6 +165,120 @@ export const routingOrchestratorService = {
     }
   },
 
+  async completePrescreenAndRedirect(input: {
+    profileId: string;
+    internalSessionToken: string;
+    answers: Record<string, unknown>;
+    durationMs?: number | null;
+    channel: "panel" | "vendor";
+    sourceIp?: string;
+    userAgent?: string;
+  }): Promise<GatewayRedirectResult> {
+    const { profile: saved } = await surveyRespondentProfileService.savePrescreenAndAdvance({
+      profileId: input.profileId,
+      internalSessionToken: input.internalSessionToken,
+      answers: input.answers,
+      durationMs: input.durationMs
+    });
+
+    const profile = saved as Record<string, unknown>;
+    const token = String(profile.internalSessionToken ?? input.internalSessionToken);
+
+    if (input.channel === "vendor") {
+      const { vendorAllocationRepository } = await import(
+        "../../repositories/vendor-allocation.repository"
+      );
+      const { validateVendorAllocationForRouting } = await import("./routing-gateway.service");
+
+      const allocationId = String(profile.allocationId ?? "");
+      const alloc = await vendorAllocationRepository.findById(allocationId);
+      if (!alloc) throw new ApiError(404, "Allocation not found");
+
+      const routingSlug = String(alloc.routingSlug ?? "");
+      const validated = await validateVendorAllocationForRouting(routingSlug, {
+        sourceIp: input.sourceIp,
+        userAgent: input.userAgent
+      });
+
+      const session = await routingSessionService.resolveByParticipantRef(token);
+      if (!session || session.type !== "vendor") {
+        throw new ApiError(404, "Vendor session not found");
+      }
+
+      const redirectUrl = routingRedirectService.buildSupplierRedirectUrl(
+        validated.externalSurveyUrl,
+        validated.trackingParameterName,
+        token
+      );
+
+      await routingSessionService.markVendorSessionRedirected(
+        session.sessionId,
+        session.allocationId
+      );
+
+      const { surveyRespondentProfileRepository } = await import(
+        "../../repositories/survey-respondent-profile.repository"
+      );
+      const { Types } = await import("mongoose");
+      await surveyRespondentProfileRepository.appendLifecycle(
+        new Types.ObjectId(input.profileId),
+        "redirected",
+        { note: "Redirected to supplier after prescreen" }
+      );
+
+      await logGatewayEvent({
+        channel: "vendor",
+        action: "redirect_success",
+        success: true,
+        panelSurveyId: validated.surveyId,
+        vendorId: validated.vendorId,
+        allocationId: validated.allocationId,
+        sessionToken: token,
+        metadata: { afterPrescreen: true }
+      });
+
+      return {
+        sessionToken: token,
+        redirectUrl,
+        channel: "vendor",
+        requiresPrescreen: false,
+        profileId: input.profileId
+      };
+    }
+
+    const panelSurveyId = String(profile.panelSurveyId ?? "");
+    const { validatePanelSurveyForRouting } = await import("./routing-gateway.service");
+    const validated = await validatePanelSurveyForRouting(panelSurveyId, {
+      sourceIp: input.sourceIp,
+      userAgent: input.userAgent
+    });
+
+    const panelCtx = await routingSessionService.resolvePanelAttemptByToken(validated, token);
+    const redirectUrl = routingRedirectService.buildSupplierRedirectUrl(
+      validated.externalSurveyUrl,
+      validated.trackingParameterName,
+      panelCtx.sessionToken
+    );
+
+    const { surveyRespondentProfileRepository } = await import(
+      "../../repositories/survey-respondent-profile.repository"
+    );
+    const { Types } = await import("mongoose");
+    await surveyRespondentProfileRepository.appendLifecycle(
+      new Types.ObjectId(input.profileId),
+      "redirected",
+      { note: "Panel redirected after prescreen" }
+    );
+
+    return {
+      sessionToken: token,
+      redirectUrl,
+      channel: "panel",
+      requiresPrescreen: false,
+      profileId: input.profileId
+    };
+  },
+
   async resolvePanelRedirect(input: PanelGatewayRedirectInput): Promise<GatewayRedirectResult> {
     const ctx = { sourceIp: input.sourceIp, userAgent: input.userAgent };
 
@@ -112,6 +289,18 @@ export const routingOrchestratorService = {
         validated,
         input.attemptToken
       );
+
+      const profile = await surveyRespondentProfileService.createForPanelAttempt({
+        panelSurveyId: validated.surveyId,
+        panelSurveyAttemptId: session.attemptId,
+        userId: session.userId,
+        internalSessionToken: session.sessionToken
+      });
+
+      const prescreen = await getUniversalRoutingPrescreenForm();
+      if (prescreen.configured && !profile.prescreenCompletedAt) {
+        return buildPrescreenGateResponse("panel", session.sessionToken, String(profile._id));
+      }
 
       const redirectUrl = routingRedirectService.buildSupplierRedirectUrl(
         validated.externalSurveyUrl,
@@ -132,7 +321,9 @@ export const routingOrchestratorService = {
       return {
         sessionToken: session.sessionToken,
         redirectUrl,
-        channel: "panel"
+        channel: "panel",
+        requiresPrescreen: false,
+        profileId: String(profile._id)
       };
     } catch (err) {
       await logValidationFailure("panel", err, {
