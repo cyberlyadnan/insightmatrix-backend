@@ -1,25 +1,17 @@
-import { VENDOR_CODE_PREFIX, VENDOR_CODE_START_NUMBER } from "../constants/vendor";
 import { Vendor } from "../models/Vendor";
+import { generateSecureAlphanumeric } from "./secure-token";
 
-const CODE_PATTERN = /^VND-(\d+)$/;
+const VENDOR_CODE_PREFIX = "VND";
 
 /**
- * Generates the next readable internal vendor code: VND-1001, VND-1002, …
- * Not related to supplier `vid` on external survey URLs.
+ * Generates non-sequential vendor codes: VND-K7X9M2QP4R (not guessable like VND-1001).
+ * Internal admin label only — not used on public supplier URLs.
  */
 export async function generateNextVendorCode(): Promise<string> {
-  const latest = await Vendor.findOne({ vendorCode: { $regex: `^${VENDOR_CODE_PREFIX}-` } })
-    .sort({ vendorCode: -1 })
-    .select("vendorCode")
-    .lean();
-
-  let nextNum = VENDOR_CODE_START_NUMBER;
-  if (latest?.vendorCode) {
-    const match = String(latest.vendorCode).match(CODE_PATTERN);
-    if (match) {
-      nextNum = Math.max(VENDOR_CODE_START_NUMBER, Number.parseInt(match[1], 10) + 1);
-    }
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const code = `${VENDOR_CODE_PREFIX}-${generateSecureAlphanumeric(10)}`;
+    const exists = await Vendor.exists({ vendorCode: code });
+    if (!exists) return code;
   }
-
-  return `${VENDOR_CODE_PREFIX}-${nextNum}`;
+  throw new Error("Failed to generate unique vendor code");
 }

@@ -3,12 +3,21 @@ import type { VendorAllocationStatus } from "../constants/vendor-allocation";
 
 const vendorSurveyAllocationSchema = new mongoose.Schema(
   {
+    /** Admin reference only (e.g. ALLOC-1001) — not used in public URLs */
     allocationCode: {
       type: String,
       required: true,
       unique: true,
       trim: true,
       uppercase: true,
+      index: true
+    },
+    /** Cryptographic public entry key for /vendor/start/:slug */
+    routingSlug: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
       index: true
     },
     panelSurveyId: {

@@ -6,7 +6,7 @@ import { VendorSurveyAllocation } from "../models/VendorSurveyAllocation";
 
 const CODE_PATTERN = /^ALLOC-(\d+)$/;
 
-/** Generates readable allocation codes: ALLOC-1001, ALLOC-1002, … */
+/** Admin-only reference label (ALLOC-1001). Public URLs use routingSlug instead. */
 export async function generateNextAllocationCode(): Promise<string> {
   const latest = await VendorSurveyAllocation.findOne({
     allocationCode: { $regex: `^${ALLOCATION_CODE_PREFIX}-` }

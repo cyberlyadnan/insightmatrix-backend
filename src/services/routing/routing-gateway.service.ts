@@ -129,14 +129,16 @@ export async function validatePanelSurveyForRouting(
 
 /** Lightweight allocation + survey validation for vendor channel */
 export async function validateVendorAllocationForRouting(
-  allocationCode: string,
+  routingSlug: string,
   ctx?: { sourceIp?: string; userAgent?: string }
 ): Promise<ValidatedVendorAllocation> {
-  const code = allocationCode.trim().toUpperCase();
-  if (!code) throw new ApiError(400, "allocationCode is required");
+  const slug = routingSlug.trim();
+  if (!slug) throw new ApiError(400, "routingSlug is required");
 
-  const allocation = await vendorAllocationRepository.findByCode(code);
+  const allocation = await vendorAllocationRepository.findForPublicRouting(slug);
   if (!allocation) throw new ApiError(404, "Allocation not found");
+
+  const code = String(allocation.allocationCode ?? "").trim().toUpperCase();
 
   const allocationId = new Types.ObjectId(String(allocation._id));
   const vendor = allocation.vendorId as unknown as Record<string, unknown> | null;

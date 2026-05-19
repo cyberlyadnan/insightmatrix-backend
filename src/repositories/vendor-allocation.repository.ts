@@ -33,6 +33,20 @@ export const vendorAllocationRepository = {
       .lean();
   },
 
+  async findByRoutingSlug(routingSlug: string) {
+    const slug = routingSlug.trim();
+    if (!slug) return null;
+    return VendorSurveyAllocation.findOne({ routingSlug: slug })
+      .populate("panelSurveyId")
+      .populate("vendorId")
+      .lean();
+  },
+
+  /** Public routing lookup — slug only (legacy ALLOC-* codes rejected on public paths) */
+  async findForPublicRouting(key: string) {
+    return this.findByRoutingSlug(key);
+  },
+
   async list(filter: VendorAllocationFilter) {
     const page = Math.max(1, filter.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 20));
@@ -50,6 +64,7 @@ export const vendorAllocationRepository = {
       const s = filter.search.trim();
       q.$or = [
         { allocationCode: { $regex: s, $options: "i" } },
+        { routingSlug: { $regex: s, $options: "i" } },
         { notes: { $regex: s, $options: "i" } }
       ];
     }

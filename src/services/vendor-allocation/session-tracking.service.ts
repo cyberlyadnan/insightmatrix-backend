@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import { Types } from "mongoose";
 import type { PanelRoutingEventType } from "../../constants/panel-survey-routing";
 import {
@@ -11,11 +10,6 @@ import {
   computeLiveRemainingQuota,
   refreshAllocationQuotaFields
 } from "./allocation-quota.service";
-
-/** Master tracking id — only InsightMatrix generates this (supplier sees it as toid) */
-export function generateSessionToken(): string {
-  return crypto.randomBytes(16).toString("hex");
-}
 
 const TERMINAL_STATUSES: VendorRespondentSessionStatus[] = [
   "complete",
@@ -42,8 +36,7 @@ function counterFieldForStatus(
 }
 
 /**
- * Sync vendor session + allocation counters when supplier callback references our sessionToken.
- * Does NOT relay callbacks to vendor URLs (Prompt 3).
+ * Sync vendor session + allocation counters when supplier callback references our internal token.
  */
 export async function tryApplyOutcomeFromRoutingEvent(
   supplierParticipantRef: string | null | undefined,
@@ -55,7 +48,7 @@ export async function tryApplyOutcomeFromRoutingEvent(
   const sessionStatus = ROUTING_EVENT_TO_SESSION_STATUS[eventType];
   if (!sessionStatus) return;
 
-  const session = await vendorRespondentSessionRepository.findByToken(token);
+  const session = await vendorRespondentSessionRepository.findByInternalToken(token);
   if (!session) return;
 
   if (TERMINAL_STATUSES.includes(session.status as VendorRespondentSessionStatus)) {
@@ -66,7 +59,9 @@ export async function tryApplyOutcomeFromRoutingEvent(
   const allocationId = new Types.ObjectId(String(session.allocationId));
 
   await vendorRespondentSessionRepository.updateStatus(sessionId, sessionStatus, {
-    completedAt: new Date()
+    completedAt: new Date(),
+    responseStatus: sessionStatus,
+    supplierReturnedToken: token
   });
 
   const counterField = counterFieldForStatus(sessionStatus);
@@ -77,10 +72,21 @@ export async function tryApplyOutcomeFromRoutingEvent(
   await refreshAllocationQuotaFields(allocationId);
 }
 
+export async function markSessionCallbackForwarded(
+  sessionId: Types.ObjectId,
+  forwarded: boolean
+) {
+  await vendorRespondentSessionRepository.markCallbackForwarded(sessionId, forwarded);
+}
+
 export async function markSessionRedirected(sessionId: Types.ObjectId) {
   await vendorRespondentSessionRepository.updateStatus(sessionId, "redirected", {
-    redirectedAt: new Date()
+    redirectedAt: new Date(),
+    responseStatus: "redirected"
   });
 }
 
 export { computeLiveRemainingQuota };
+
+/** @deprecated use tokenGeneratorService */
+export { generateRoutingSessionToken as generateSessionToken } from "../routing/routing-session.service";

@@ -8,8 +8,9 @@ import { startVendorRoutingSession } from "../services/vendor-allocation/vendor-
  */
 export const postVendorRoutingStart = asyncHandler(async (req, res) => {
   const result = await startVendorRoutingSession({
-    allocationCode: req.body.allocationCode,
-    vendorRespondentId: req.body.vendorRespondentId,
+    routingSlug: req.body.routingSlug,
+    vendorRespondentToid: req.body.vendorRespondentToid ?? req.body.vendorRespondentId,
+    vendorRespondentId: req.body.vendorRespondentId ?? req.body.vendorRespondentToid,
     trafficSource: req.body.trafficSource,
     sourceIp: req.ip ?? req.socket?.remoteAddress ?? "",
     userAgent: String(req.headers["user-agent"] ?? "")
@@ -20,8 +21,7 @@ export const postVendorRoutingStart = asyncHandler(async (req, res) => {
     message: "Session created",
     data: {
       sessionToken: result.sessionToken,
-      redirectUrl: result.redirectUrl,
-      allocationCode: result.allocationCode
+      redirectUrl: result.redirectUrl
     }
   });
 });

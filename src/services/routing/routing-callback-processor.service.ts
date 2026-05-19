@@ -29,7 +29,7 @@ export type SupplierCallbackResult = {
 
 /**
  * Unified supplier callback pipeline:
- * analytics → session update → vendor relay → gateway logs
+ * analytics → session update → vendor relay (restored vendor toid) → gateway logs
  */
 export async function processSupplierCallback(
   payload: SupplierCallbackPayload
@@ -68,7 +68,8 @@ export async function processSupplierCallback(
       allocationId: resolved.allocationId,
       sessionId: resolved.sessionId,
       eventType: payload.eventType,
-      participantRef,
+      supplierReturnedToken: participantRef,
+      vendorRespondentToid: resolved.vendorRespondentToid,
       supplierProjectPid: payload.supplierProjectPid,
       queryParams:
         payload.meta && typeof payload.meta === "object" && "query" in (payload.meta as object)
@@ -91,7 +92,11 @@ export async function processSupplierCallback(
       allocationId: resolved.allocationId,
       sessionToken: participantRef,
       failureReason: relay.skippedReason,
-      metadata: { eventType: payload.eventType, targetUrl: relay.targetUrl }
+      metadata: {
+        eventType: payload.eventType,
+        targetUrl: relay.targetUrl,
+        vendorRespondentToid: resolved.vendorRespondentToid
+      }
     });
 
     if (relay.dispatched) {
@@ -99,10 +104,7 @@ export async function processSupplierCallback(
         { _id: resolved.vendorId },
         {
           $inc: {
-            totalCompletes:
-              payload.eventType === "complete"
-                ? 1
-                : 0,
+            totalCompletes: payload.eventType === "complete" ? 1 : 0,
             totalTerminates: payload.eventType === "terminate" ? 1 : 0,
             totalQuotaFull: payload.eventType === "quota_full" ? 1 : 0,
             totalQualityRejects: payload.eventType === "quality_reject" ? 1 : 0

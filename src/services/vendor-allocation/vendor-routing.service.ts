@@ -1,7 +1,8 @@
 import { routingOrchestratorService } from "../routing/routing-orchestrator.service";
 
 export type VendorRoutingStartInput = {
-  allocationCode: string;
+  routingSlug: string;
+  vendorRespondentToid?: string;
   vendorRespondentId?: string;
   trafficSource?: string;
   sourceIp?: string;
@@ -24,7 +25,7 @@ export async function startVendorRoutingSession(
   return {
     sessionToken: result.sessionToken,
     redirectUrl: result.redirectUrl,
-    allocationCode: result.allocationCode ?? input.allocationCode.trim().toUpperCase()
+    allocationCode: result.allocationCode ?? ""
   };
 }
 

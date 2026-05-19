@@ -8,7 +8,8 @@ import { routingRedirectService } from "./routing-redirect.service";
 import { routingSessionService } from "./routing-session.service";
 
 export type VendorGatewayStartInput = {
-  allocationCode: string;
+  routingSlug: string;
+  vendorRespondentToid?: string;
   vendorRespondentId?: string;
   trafficSource?: string;
   sourceIp?: string;
@@ -49,10 +50,10 @@ export const routingOrchestratorService = {
     const ctx = { sourceIp: input.sourceIp, userAgent: input.userAgent };
 
     try {
-      const validated = await validateVendorAllocationForRouting(input.allocationCode, ctx);
+      const validated = await validateVendorAllocationForRouting(input.routingSlug, ctx);
 
       const session = await routingSessionService.createVendorRespondentSession(validated, {
-        vendorRespondentId: input.vendorRespondentId,
+        vendorRespondentToid: input.vendorRespondentToid ?? input.vendorRespondentId,
         trafficSource: input.trafficSource,
         sourceIp: input.sourceIp,
         userAgent: input.userAgent
@@ -61,7 +62,7 @@ export const routingOrchestratorService = {
       const redirectUrl = routingRedirectService.buildSupplierRedirectUrl(
         validated.externalSurveyUrl,
         validated.trackingParameterName,
-        session.sessionToken
+        session.internalSessionToken
       );
 
       await routingSessionService.markVendorSessionRedirected(
@@ -76,14 +77,17 @@ export const routingOrchestratorService = {
         panelSurveyId: validated.surveyId,
         vendorId: validated.vendorId,
         allocationId: validated.allocationId,
-        sessionToken: session.sessionToken,
+        sessionToken: session.internalSessionToken,
         sourceIp: input.sourceIp,
         userAgent: input.userAgent,
-        metadata: { allocationCode: validated.allocationCode }
+        metadata: {
+          allocationCode: validated.allocationCode,
+          vendorRespondentToid: session.vendorRespondentToid
+        }
       });
 
       return {
-        sessionToken: session.sessionToken,
+        sessionToken: session.internalSessionToken,
         redirectUrl,
         channel: "vendor",
         allocationCode: validated.allocationCode
@@ -92,7 +96,7 @@ export const routingOrchestratorService = {
       await logValidationFailure("vendor", err, {
         sourceIp: input.sourceIp,
         userAgent: input.userAgent,
-        metadata: { allocationCode: input.allocationCode }
+        metadata: { routingSlug: input.routingSlug }
       });
       throw err;
     }

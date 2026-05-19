@@ -5,6 +5,7 @@ import { Vendor } from "../../models/Vendor";
 import { vendorAllocationRepository, type VendorAllocationFilter } from "../../repositories/vendor-allocation.repository";
 import { generateNextAllocationCode } from "../../utils/allocation-code";
 import { buildVendorAllocationRoutingLink } from "../../utils/vendor-routing-link";
+import { generateUniqueRoutingSlug } from "../../utils/routing-slug";
 import {
   computeLiveRemainingQuota,
   computeRates,
@@ -78,7 +79,8 @@ export const vendorAllocationService = {
     await validateAllocationQuotaAgainstSurvey(payload.panelSurveyId, payload.allocatedQuota);
 
     const allocationCode = await generateNextAllocationCode();
-    const routingLink = buildVendorAllocationRoutingLink(allocationCode);
+    const routingSlug = await generateUniqueRoutingSlug();
+    const routingLink = buildVendorAllocationRoutingLink(routingSlug);
     const vendorCpi = Number(payload.vendorCpi ?? 0);
     const clientCpi = Number(payload.clientCpi ?? survey.revenuePerComplete ?? 0);
     const liveRemainingQuota = payload.allocatedQuota;
@@ -86,6 +88,7 @@ export const vendorAllocationService = {
 
     const doc = await vendorAllocationRepository.create({
       allocationCode,
+      routingSlug,
       panelSurveyId: payload.panelSurveyId,
       vendorId: payload.vendorId,
       status: "active",

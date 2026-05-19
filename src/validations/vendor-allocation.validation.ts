@@ -58,9 +58,12 @@ export const updateVendorAllocationSchema = Joi.object({
   query: emptyObject
 });
 
+const compactTokenPattern = /^[A-Z]{3}[A-Z2-9]{7,12}$/i;
+
 export const vendorRoutingStartSchema = Joi.object({
   body: Joi.object({
-    allocationCode: Joi.string().trim().min(4).max(32).required(),
+    routingSlug: Joi.string().trim().min(10).max(15).pattern(compactTokenPattern).required(),
+    vendorRespondentToid: Joi.string().trim().max(500).allow(""),
     vendorRespondentId: Joi.string().trim().max(500).allow(""),
     trafficSource: Joi.string().trim().max(500).allow("")
   }).required(),

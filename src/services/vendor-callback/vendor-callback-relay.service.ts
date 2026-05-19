@@ -3,7 +3,10 @@ import { Vendor } from "../../models/Vendor";
 import { toVendorCallbackOutcome } from "../../constants/routing-callback";
 import type { PanelRoutingEventType } from "../../constants/panel-survey-routing";
 import { normalizeVendorCallbackUrls, getCallbackUrlForOutcome } from "../../utils/vendor-callback";
+import { buildVendorCallbackDestinationUrl } from "../../utils/vendor-callback-url";
 import { webhookDeliveryService } from "../webhook/webhook-delivery.service";
+import { vendorRespondentSessionRepository } from "../../repositories/vendor-respondent-session.repository";
+import { markSessionCallbackForwarded } from "../vendor-allocation/session-tracking.service";
 import type {
   IVendorCallbackRelayService,
   VendorCallbackRelayContext,
@@ -16,7 +19,9 @@ export type VendorRelayForwardInput = {
   allocationId?: Types.ObjectId | string | null;
   sessionId?: Types.ObjectId | string | null;
   eventType: PanelRoutingEventType;
-  participantRef?: string | null;
+  /** Internal token returned by supplier — never sent to vendor */
+  supplierReturnedToken?: string | null;
+  vendorRespondentToid?: string | null;
   supplierProjectPid?: string | null;
   queryParams?: Record<string, string>;
 };
@@ -32,12 +37,19 @@ export const vendorCallbackRelayService: IVendorCallbackRelayService = {
       return { dispatched: false, targetUrl: null, skippedReason: "not_configured" };
     }
 
+    const vendorToid = String(ctx.participantRef ?? "").trim();
+    const destinationUrl = buildVendorCallbackDestinationUrl(targetUrl, {
+      toid: vendorToid,
+      pid: ctx.supplierPid ?? "",
+      extra: ctx.queryParams ?? {}
+    });
+
     const payload = {
       outcome: ctx.outcome,
       vendorCode: ctx.vendorCode,
       panelSurveyId: ctx.panelSurveyId,
       assignmentId: ctx.assignmentId,
-      participantRef: ctx.participantRef,
+      participantRef: vendorToid,
       supplierPid: ctx.supplierPid,
       recordedAt: ctx.recordedAt ?? new Date().toISOString(),
       query: ctx.queryParams ?? {}
@@ -49,20 +61,20 @@ export const vendorCallbackRelayService: IVendorCallbackRelayService = {
       allocationId: ctx.assignmentId,
       sessionId: null,
       callbackType: ctx.outcome,
-      destinationUrl: targetUrl,
+      destinationUrl,
       requestPayload: payload
     });
 
     return {
       dispatched: result.deliveryStatus === "success",
-      targetUrl,
+      targetUrl: destinationUrl,
       skippedReason: result.deliveryStatus === "success" ? undefined : "delivery_failed"
     };
   }
 };
 
 /**
- * Relay supplier outcome to vendor webhook URL when session is vendor-originated.
+ * Relay supplier outcome to vendor — restores vendor's original toid in URL and payload.
  */
 export async function relayVendorCallbackForSession(
   input: VendorRelayForwardInput
@@ -83,10 +95,24 @@ export async function relayVendorCallbackForSession(
   }
 
   const callbackUrls = normalizeVendorCallbackUrls(vendor.callbackUrls);
-  const targetUrl = getCallbackUrlForOutcome(callbackUrls, outcome);
-  if (!targetUrl) {
+  const baseTargetUrl = getCallbackUrlForOutcome(callbackUrls, outcome);
+  if (!baseTargetUrl) {
     return { dispatched: false, targetUrl: null, skippedReason: "not_configured" };
   }
+
+  let vendorRespondentToid = String(input.vendorRespondentToid ?? "").trim();
+  if (!vendorRespondentToid && input.sessionId) {
+    const session = await vendorRespondentSessionRepository.findById(String(input.sessionId));
+    vendorRespondentToid = String(
+      session?.vendorRespondentToid ?? session?.vendorRespondentId ?? ""
+    ).trim();
+  }
+
+  const destinationUrl = buildVendorCallbackDestinationUrl(baseTargetUrl, {
+    toid: vendorRespondentToid,
+    pid: input.supplierProjectPid ?? "",
+    extra: input.queryParams ?? {}
+  });
 
   const payload = {
     outcome,
@@ -95,7 +121,7 @@ export async function relayVendorCallbackForSession(
     panelSurveyId: String(input.panelSurveyId),
     allocationId: input.allocationId ? String(input.allocationId) : undefined,
     sessionId: input.sessionId ? String(input.sessionId) : undefined,
-    participantRef: input.participantRef ?? "",
+    participantRef: vendorRespondentToid,
     supplierProjectPid: input.supplierProjectPid ?? "",
     recordedAt: new Date().toISOString(),
     query: input.queryParams ?? {}
@@ -107,13 +133,20 @@ export async function relayVendorCallbackForSession(
     allocationId: input.allocationId,
     sessionId: input.sessionId,
     callbackType: outcome,
-    destinationUrl: targetUrl,
+    destinationUrl,
     requestPayload: payload
   });
 
+  if (input.sessionId) {
+    await markSessionCallbackForwarded(
+      new Types.ObjectId(String(input.sessionId)),
+      delivery.deliveryStatus === "success"
+    ).catch(() => {});
+  }
+
   return {
     dispatched: delivery.deliveryStatus === "success",
-    targetUrl,
+    targetUrl: destinationUrl,
     skippedReason: delivery.deliveryStatus === "success" ? undefined : "delivery_failed"
   };
 }

@@ -16,6 +16,7 @@ import vendorAuthRoutes from './vendor-auth.routes';
 import vendorPortalRoutes from './vendor-portal.routes';
 import vendorAllocationRoutes from './vendor-allocation.routes';
 import routingLogsRoutes from './routing-logs.routes';
+import vendorRespondentTrackingRoutes from './vendor-respondent-tracking.routes';
 
 const router = Router();
 
@@ -36,6 +37,7 @@ router.use("/vendor-auth", vendorAuthRoutes);
 router.use("/vendor-portal", vendorPortalRoutes);
 router.use("/vendor-allocations", vendorAllocationRoutes);
 router.use("/routing-logs", routingLogsRoutes);
+router.use("/vendor-respondent-sessions", vendorRespondentTrackingRoutes);
 
 export default router;
 

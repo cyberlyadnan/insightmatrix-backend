@@ -19,6 +19,7 @@ export type VendorAllocationVendorSummary = {
 export type VendorSurveyAllocationDto = {
   id: string;
   allocationCode: string;
+  routingSlug: string;
   panelSurveyId: string;
   vendorId: string;
   panelSurvey: VendorAllocationSurveySummary | null;
@@ -129,6 +130,7 @@ export function toVendorSurveyAllocationDto(
   return {
     id: String(doc._id),
     allocationCode: String(doc.allocationCode ?? ""),
+    routingSlug: String(doc.routingSlug ?? ""),
     panelSurveyId: refId(doc.panelSurveyId),
     vendorId: refId(doc.vendorId),
     panelSurvey: surveySummary(
