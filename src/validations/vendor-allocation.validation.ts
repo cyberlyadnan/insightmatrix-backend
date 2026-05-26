@@ -65,7 +65,8 @@ export const vendorRoutingStartSchema = Joi.object({
     routingSlug: Joi.string().trim().min(10).max(15).pattern(compactTokenPattern).required(),
     vendorRespondentToid: Joi.string().trim().max(500).allow(""),
     vendorRespondentId: Joi.string().trim().max(500).allow(""),
-    trafficSource: Joi.string().trim().max(500).allow("")
+    trafficSource: Joi.string().trim().max(500).allow(""),
+    captchaToken: Joi.string().trim().max(4000).allow("", null)
   }).required(),
   params: emptyObject,
   query: emptyObject

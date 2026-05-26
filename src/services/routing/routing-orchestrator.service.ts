@@ -1,4 +1,3 @@
-import { ApiError } from "../../utils/ApiError";
 import {
   logGatewayEvent,
   validatePanelSurveyForRouting,
@@ -9,6 +8,8 @@ import { routingSessionService } from "./routing-session.service";
 import { getUniversalRoutingPrescreenForm } from "../prescreen/universal-prescreen.service";
 import { surveyRespondentProfileService } from "../survey-respondent-profile/survey-respondent-profile.service";
 import { toPrescreenDto } from "../../utils/prescreen.dto";
+import { securityGatewayService } from "../security/security-gateway.service";
+import { ApiError } from "../../utils/ApiError";
 
 export type VendorGatewayStartInput = {
   routingSlug: string;
@@ -16,14 +17,20 @@ export type VendorGatewayStartInput = {
   vendorRespondentId?: string;
   trafficSource?: string;
   sourceIp?: string;
+  forwardedIp?: string;
   userAgent?: string;
+  headers?: Record<string, string>;
+  captchaToken?: string | null;
 };
 
 export type PanelGatewayRedirectInput = {
   surveyId: string;
   attemptToken: string;
   sourceIp?: string;
+  forwardedIp?: string;
   userAgent?: string;
+  headers?: Record<string, string>;
+  captchaToken?: string | null;
 };
 
 export type GatewayRedirectResult = {
@@ -32,6 +39,8 @@ export type GatewayRedirectResult = {
   channel: "panel" | "vendor";
   allocationCode?: string;
   requiresPrescreen?: boolean;
+  requiresCaptcha?: boolean;
+  captchaSiteKey?: string;
   profileId?: string;
   prescreenForm?: ReturnType<typeof toPrescreenDto> | null;
 };
@@ -83,6 +92,43 @@ export const routingOrchestratorService = {
 
     try {
       const validated = await validateVendorAllocationForRouting(input.routingSlug, ctx);
+
+      const security = await securityGatewayService.validateTraffic({
+        channel: "vendor",
+        panelSurveyId: validated.surveyId,
+        vendorId: validated.vendorId,
+        allocationId: validated.allocationId,
+        ipAddress: input.sourceIp ?? "",
+        forwardedIp: input.forwardedIp ?? "",
+        userAgent: input.userAgent ?? "",
+        headers: input.headers,
+        captchaToken: input.captchaToken,
+        survey: validated.survey,
+        vendor: validated.vendor
+      });
+
+      if (security.requiresCaptcha) {
+        await logGatewayEvent({
+          channel: "vendor",
+          action: "security_captcha_required",
+          success: true,
+          panelSurveyId: validated.surveyId,
+          vendorId: validated.vendorId,
+          allocationId: validated.allocationId,
+          metadata: { security: "captcha_required" }
+        });
+        return {
+          sessionToken: "",
+          channel: "vendor",
+          requiresCaptcha: true,
+          captchaSiteKey: security.captchaSiteKey,
+          allocationCode: validated.allocationCode
+        };
+      }
+
+      if (!security.allowed) {
+        throw new ApiError(403, security.result.publicMessage);
+      }
 
       const session = await routingSessionService.createVendorRespondentSession(validated, {
         vendorRespondentToid: input.vendorRespondentToid ?? input.vendorRespondentId,
@@ -289,6 +335,30 @@ export const routingOrchestratorService = {
         validated,
         input.attemptToken
       );
+
+      const security = await securityGatewayService.validateTraffic({
+        channel: "panel",
+        panelSurveyId: validated.surveyId,
+        ipAddress: input.sourceIp ?? "",
+        forwardedIp: input.forwardedIp ?? "",
+        userAgent: input.userAgent ?? "",
+        headers: input.headers,
+        captchaToken: input.captchaToken,
+        survey: validated.survey
+      });
+
+      if (security.requiresCaptcha) {
+        return {
+          sessionToken: session.sessionToken,
+          channel: "panel",
+          requiresCaptcha: true,
+          captchaSiteKey: security.captchaSiteKey
+        };
+      }
+
+      if (!security.allowed) {
+        throw new ApiError(403, security.result.publicMessage);
+      }
 
       const profile = await surveyRespondentProfileService.createForPanelAttempt({
         panelSurveyId: validated.surveyId,

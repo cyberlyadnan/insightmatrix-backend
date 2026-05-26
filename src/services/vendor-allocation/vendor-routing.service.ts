@@ -6,7 +6,10 @@ export type VendorRoutingStartInput = {
   vendorRespondentId?: string;
   trafficSource?: string;
   sourceIp?: string;
+  forwardedIp?: string;
   userAgent?: string;
+  headers?: Record<string, string>;
+  captchaToken?: string | null;
 };
 
 export type VendorRoutingStartResult = {
@@ -14,6 +17,8 @@ export type VendorRoutingStartResult = {
   redirectUrl?: string;
   allocationCode?: string;
   requiresPrescreen?: boolean;
+  requiresCaptcha?: boolean;
+  captchaSiteKey?: string;
   profileId?: string;
   prescreenForm?: unknown;
 };
@@ -30,6 +35,8 @@ export async function startVendorRoutingSession(
     redirectUrl: result.redirectUrl,
     allocationCode: result.allocationCode,
     requiresPrescreen: result.requiresPrescreen,
+    requiresCaptcha: result.requiresCaptcha,
+    captchaSiteKey: result.captchaSiteKey,
     profileId: result.profileId,
     prescreenForm: result.prescreenForm
   };

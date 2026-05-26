@@ -7,6 +7,7 @@ export const GATEWAY_ROUTING_ACTIONS = [
   "redirect_success",
   "validation_failed",
   "prescreen_required",
+  "security_captcha_required",
   "callback_received",
   "callback_forwarded",
   "callback_forward_skipped"

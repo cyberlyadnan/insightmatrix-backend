@@ -3,7 +3,6 @@ import { ApiError } from "../../utils/ApiError";
 import { PanelSurvey } from "../../models/PanelSurvey";
 import { vendorAllocationRepository } from "../../repositories/vendor-allocation.repository";
 import { gatewayRoutingLogRepository } from "../../repositories/gateway-routing-log.repository";
-import { gatewayValidationService } from "../gateway/gateway-validation.service";
 import { computeLiveRemainingQuota } from "../vendor-allocation/allocation-quota.service";
 import type { GatewayRoutingAction, RoutingChannel } from "../../constants/routing-gateway";
 
@@ -84,15 +83,6 @@ export async function validatePanelSurveyForRouting(
   const survey = await PanelSurvey.findById(surveyId).lean();
   if (!survey) throw new ApiError(404, "Survey not found");
 
-  const gateway = await gatewayValidationService.validateSession({
-    panelSurveyId: surveyId,
-    ipAddress: ctx?.sourceIp,
-    userAgent: ctx?.userAgent
-  });
-  if (!gateway.allowed) {
-    throw new ApiError(403, gateway.reasons[0] ?? "Gateway blocked session");
-  }
-
   if (survey.surveyStatus !== "active") {
     throw new ApiError(403, "Survey is not accepting traffic");
   }
@@ -149,17 +139,6 @@ export async function validateVendorAllocationForRouting(
 
   const vendorId = new Types.ObjectId(String(vendor._id));
   const surveyId = new Types.ObjectId(String(survey._id));
-
-  const gateway = await gatewayValidationService.validateSession({
-    allocationCode: code,
-    panelSurveyId: String(surveyId),
-    vendorId: String(vendorId),
-    ipAddress: ctx?.sourceIp,
-    userAgent: ctx?.userAgent
-  });
-  if (!gateway.allowed) {
-    throw new ApiError(403, gateway.reasons[0] ?? "Gateway blocked session");
-  }
 
   if (allocation.status === "paused") throw new ApiError(403, "This allocation is paused");
   if (allocation.status === "closed") throw new ApiError(403, "This allocation is closed");
