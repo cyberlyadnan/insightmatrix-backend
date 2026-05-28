@@ -33,6 +33,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(xssSanitizeMiddleware);
 app.use(cookieParser());
 
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "API is working"
+  });
+});
+
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(env.API_PREFIX, routes);
 
