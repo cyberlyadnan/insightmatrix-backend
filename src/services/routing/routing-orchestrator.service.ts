@@ -10,6 +10,7 @@ import { surveyRespondentProfileService } from "../survey-respondent-profile/sur
 import { toPrescreenDto } from "../../utils/prescreen.dto";
 import { securityGatewayService } from "../security/security-gateway.service";
 import { ApiError } from "../../utils/ApiError";
+import { extractObjectIdString } from "../../utils/object-id";
 
 export type VendorGatewayStartInput = {
   routingSlug: string;
@@ -236,7 +237,8 @@ export const routingOrchestratorService = {
       );
       const { validateVendorAllocationForRouting } = await import("./routing-gateway.service");
 
-      const allocationId = String(profile.allocationId ?? "");
+      const allocationId = extractObjectIdString(profile.allocationId);
+      if (!allocationId) throw new ApiError(404, "Allocation not found");
       const alloc = await vendorAllocationRepository.findById(allocationId);
       if (!alloc) throw new ApiError(404, "Allocation not found");
 
@@ -292,7 +294,8 @@ export const routingOrchestratorService = {
       };
     }
 
-    const panelSurveyId = String(profile.panelSurveyId ?? "");
+    const panelSurveyId = extractObjectIdString(profile.panelSurveyId);
+    if (!panelSurveyId) throw new ApiError(404, "Survey not found for profile");
     const { validatePanelSurveyForRouting } = await import("./routing-gateway.service");
     const validated = await validatePanelSurveyForRouting(panelSurveyId, {
       sourceIp: input.sourceIp,

@@ -10,6 +10,7 @@ import {
   persistRoutingPrescreenSubmission
 } from "../prescreen/universal-prescreen.service";
 import { toSurveyRespondentProfileDto } from "../../utils/survey-respondent-profile.dto";
+import { toObjectId } from "../../utils/object-id";
 import type { RespondentProfileListFilter } from "../../repositories/survey-respondent-profile.repository";
 
 const TERMINAL: RespondentSurveyStatus[] = [
@@ -207,7 +208,7 @@ export const surveyRespondentProfileService = {
       throw new ApiError(400, "Invalid profile id");
     }
 
-    const profile = await surveyRespondentProfileRepository.findById(input.profileId);
+    const profile = await surveyRespondentProfileRepository.findByIdPlain(input.profileId);
     if (!profile) throw new ApiError(404, "Respondent profile not found");
 
     const token = String(profile.internalSessionToken ?? "");
@@ -229,7 +230,7 @@ export const surveyRespondentProfileService = {
       durationMs: input.durationMs,
       respondentOwnerType: profile.respondentOwnerType as "internal" | "vendor",
       vendorRespondentToid: String(profile.vendorRespondentToid ?? ""),
-      userId: profile.userId ? new Types.ObjectId(String(profile.userId)) : null
+      userId: toObjectId(profile.userId)
     });
 
     const updated = await surveyRespondentProfileRepository.appendLifecycle(

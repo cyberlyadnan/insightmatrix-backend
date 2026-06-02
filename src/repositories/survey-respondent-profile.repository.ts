@@ -31,6 +31,12 @@ export const surveyRespondentProfileRepository = {
       .lean();
   },
 
+  /** Unpopulated document — use before writes / ObjectId extraction */
+  findByIdPlain(id: string) {
+    if (!Types.ObjectId.isValid(id)) return null;
+    return SurveyRespondentProfile.findById(id).lean();
+  },
+
   findByInternalToken(token: string) {
     const t = token.trim();
     if (!t) return null;
