@@ -43,14 +43,34 @@ export async function persistRoutingPrescreenSubmission(input: {
       ? Math.min(Math.floor(input.durationMs), 1000 * 60 * 60 * 24)
       : null;
 
-  await PrescreenSubmission.create({
-    userId: input.userId ?? null,
+  const payload = {
     respondentProfileId: input.profileId,
     respondentOwnerType: input.respondentOwnerType,
     vendorRespondentToid: String(input.vendorRespondentToid ?? "").slice(0, 500),
-    formId: input.formId,
     answers: input.answers,
     durationMs: dm,
     submittedAt: new Date()
-  });
+  };
+
+  // Members may already have submitted this form via dashboard panel prescreen (unique userId+formId).
+  if (input.userId) {
+    await PrescreenSubmission.findOneAndUpdate(
+      { userId: input.userId, formId: input.formId },
+      {
+        $set: payload,
+        $setOnInsert: { userId: input.userId, formId: input.formId }
+      },
+      { upsert: true }
+    );
+    return;
+  }
+
+  await PrescreenSubmission.findOneAndUpdate(
+    { respondentProfileId: input.profileId, formId: input.formId },
+    {
+      $set: { ...payload, userId: null },
+      $setOnInsert: { formId: input.formId }
+    },
+    { upsert: true }
+  );
 }

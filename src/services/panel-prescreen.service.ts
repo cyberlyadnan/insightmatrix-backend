@@ -189,13 +189,19 @@ export async function submitPanelPrescreen(
       ? Math.min(Math.floor(durationMs), 1000 * 60 * 60 * 24)
       : null;
 
-  await PrescreenSubmission.create({
-    userId: new Types.ObjectId(userId),
-    formId: form._id,
-    answers: normalized,
-    durationMs: dm,
-    submittedAt: new Date()
-  });
+  const userOid = new Types.ObjectId(userId);
+  await PrescreenSubmission.findOneAndUpdate(
+    { userId: userOid, formId: form._id },
+    {
+      $set: {
+        answers: normalized,
+        durationMs: dm,
+        submittedAt: new Date()
+      },
+      $setOnInsert: { userId: userOid, formId: form._id }
+    },
+    { upsert: true }
+  );
 
   await User.findByIdAndUpdate(userId, {
     panelPrescreenCompletedAt: new Date(),
