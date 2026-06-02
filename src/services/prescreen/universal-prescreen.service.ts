@@ -65,12 +65,19 @@ export async function persistRoutingPrescreenSubmission(input: {
     return;
   }
 
-  await PrescreenSubmission.findOneAndUpdate(
-    { respondentProfileId: input.profileId, formId: input.formId },
-    {
-      $set: { ...payload, userId: null },
-      $setOnInsert: { formId: input.formId }
-    },
-    { upsert: true }
-  );
+  try {
+    await PrescreenSubmission.findOneAndUpdate(
+      { respondentProfileId: input.profileId, formId: input.formId },
+      {
+        $set: payload,
+        $unset: { userId: "" },
+        $setOnInsert: { formId: input.formId, respondentProfileId: input.profileId }
+      },
+      { upsert: true }
+    );
+  } catch (err) {
+    const code = (err as { code?: number }).code;
+    if (code !== 11000) throw err;
+    // Legacy DB index may still block — profile prescreen answers remain the source of truth.
+  }
 }

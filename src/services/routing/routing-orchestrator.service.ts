@@ -253,11 +253,22 @@ export const routingOrchestratorService = {
         throw new ApiError(404, "Vendor session not found");
       }
 
-      const redirectUrl = routingRedirectService.buildSupplierRedirectUrl(
-        validated.externalSurveyUrl,
-        validated.trackingParameterName,
-        token
-      );
+      let redirectUrl: string;
+      try {
+        redirectUrl = routingRedirectService.buildSupplierRedirectUrl(
+          validated.externalSurveyUrl,
+          validated.trackingParameterName,
+          token
+        );
+      } catch {
+        throw new ApiError(
+          400,
+          "This survey does not have a valid supplier URL configured. Please contact support."
+        );
+      }
+      if (!redirectUrl.trim()) {
+        throw new ApiError(400, "Survey redirect URL is missing.");
+      }
 
       await routingSessionService.markVendorSessionRedirected(
         session.sessionId,
@@ -303,11 +314,22 @@ export const routingOrchestratorService = {
     });
 
     const panelCtx = await routingSessionService.resolvePanelAttemptByToken(validated, token);
-    const redirectUrl = routingRedirectService.buildSupplierRedirectUrl(
-      validated.externalSurveyUrl,
-      validated.trackingParameterName,
-      panelCtx.sessionToken
-    );
+    let redirectUrl: string;
+    try {
+      redirectUrl = routingRedirectService.buildSupplierRedirectUrl(
+        validated.externalSurveyUrl,
+        validated.trackingParameterName,
+        panelCtx.sessionToken
+      );
+    } catch {
+      throw new ApiError(
+        400,
+        "This survey does not have a valid supplier URL configured. Please contact support."
+      );
+    }
+    if (!redirectUrl.trim()) {
+      throw new ApiError(400, "Survey redirect URL is missing.");
+    }
 
     const { surveyRespondentProfileRepository } = await import(
       "../../repositories/survey-respondent-profile.repository"

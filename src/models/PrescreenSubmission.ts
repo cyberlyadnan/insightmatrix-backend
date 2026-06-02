@@ -26,7 +26,14 @@ const prescreenSubmissionSchema = new mongoose.Schema(
 );
 
 prescreenSubmissionSchema.index({ formId: 1, submittedAt: -1 });
-prescreenSubmissionSchema.index({ userId: 1, formId: 1 });
-prescreenSubmissionSchema.index({ respondentProfileId: 1, formId: 1 });
+/** Panel members only — vendors omit userId so each respondentProfileId can have its own row */
+prescreenSubmissionSchema.index(
+  { userId: 1, formId: 1 },
+  { unique: true, partialFilterExpression: { userId: { $type: "objectId" } } }
+);
+prescreenSubmissionSchema.index(
+  { respondentProfileId: 1, formId: 1 },
+  { unique: true, partialFilterExpression: { respondentProfileId: { $type: "objectId" } } }
+);
 
 export const PrescreenSubmission = mongoose.model("PrescreenSubmission", prescreenSubmissionSchema);
