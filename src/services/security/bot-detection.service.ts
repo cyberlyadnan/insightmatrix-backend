@@ -20,6 +20,17 @@ const BOT_UA_PATTERNS = [
 
 const MIN_UA_LENGTH = 12;
 
+/** Browsers use text/html on navigation; our gateway uses fetch with application/json. */
+function hasLegitimateAcceptHeader(accept: string): boolean {
+  const value = accept.toLowerCase();
+  if (!value) return false;
+  return (
+    value.includes("text/html") ||
+    value.includes("*/*") ||
+    value.includes("application/json")
+  );
+}
+
 export const botDetectionService = {
   analyze(ctx: SecurityTrafficContext): SecurityValidationResult {
     if (!gatewaySecurityConfig.enabled || !gatewaySecurityConfig.bot.enabled) {
@@ -52,8 +63,8 @@ export const botDetectionService = {
     }
 
     const accept = String(headers.accept ?? headers.Accept ?? "");
-    const acceptLang = String(headers["accept-language"] ?? "");
-    if (!suspicious && ua && !accept.includes("text/html") && !accept.includes("*/*")) {
+    const acceptLang = String(headers["accept-language"] ?? headers["Accept-Language"] ?? "");
+    if (!suspicious && ua && !hasLegitimateAcceptHeader(accept)) {
       suspicious = true;
       detail = "missing_accept_header";
     }
