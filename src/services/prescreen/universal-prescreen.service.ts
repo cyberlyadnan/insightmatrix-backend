@@ -4,10 +4,11 @@ import { PrescreenForm } from "../../models/PrescreenForm";
 import { PrescreenSubmission } from "../../models/PrescreenSubmission";
 import { toPrescreenDto } from "../../utils/prescreen.dto";
 import { normalizePrescreenAnswers } from "./prescreen-validation";
+import { findPublishedRequiredPanelPrescreen } from "../panel-prescreen.service";
 
 /** Published form used for all routing respondents (panel + vendor) */
 export async function getUniversalRoutingPrescreenForm() {
-  const form = await PrescreenForm.findOne({ status: "published", isRequiredForPanel: true });
+  const form = await findPublishedRequiredPanelPrescreen();
   if (!form) {
     return { configured: false as const, form: null };
   }

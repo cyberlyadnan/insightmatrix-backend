@@ -12,6 +12,7 @@ import {
   reorderPrescreenQuestions,
   seedDefaultPrescreens,
   seedPanelMemberPrescreen,
+  setPrescreenRequiredForPanel,
   unpublishPrescreen,
   updatePrescreen
 } from '../controllers/prescreen.controller';
@@ -43,6 +44,7 @@ router.get("/:id", validate(paramsIdSchema), getPrescreenById);
 router.patch("/:id", validate(updatePrescreenSchema), updatePrescreen);
 router.delete("/:id", validate(paramsIdSchema), deletePrescreen);
 router.patch("/:id/publish", validate(paramsIdSchema), publishPrescreen);
+router.patch("/:id/set-required-for-panel", validate(paramsIdSchema), setPrescreenRequiredForPanel);
 router.patch("/:id/unpublish", validate(paramsIdSchema), unpublishPrescreen);
 router.post("/:id/duplicate", validate(paramsIdSchema), duplicatePrescreen);
 router.patch("/:id/reorder-questions", validate(reorderQuestionsSchema), reorderPrescreenQuestions);

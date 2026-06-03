@@ -46,6 +46,14 @@ export const publishPrescreen = asyncHandler(async (req, res) => {
   sendResponse(res, { message: "Prescreen published", data: toPrescreenDto(form) });
 });
 
+export const setPrescreenRequiredForPanel = asyncHandler(async (req, res) => {
+  const form = await prescreenService.setRequiredForPanel(req.params.id);
+  sendResponse(res, {
+    message: "This prescreen is now required for the panel and routing",
+    data: toPrescreenDto(form)
+  });
+});
+
 export const unpublishPrescreen = asyncHandler(async (req, res) => {
   const form = await prescreenService.setStatus(req.params.id, "draft");
   sendResponse(res, { message: "Prescreen moved to draft", data: toPrescreenDto(form) });

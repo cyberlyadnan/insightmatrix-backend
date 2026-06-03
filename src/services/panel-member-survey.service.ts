@@ -4,8 +4,8 @@ import { ApiError } from "../utils/ApiError";
 import { ROLES } from "../constants/roles";
 import { PanelSurvey } from "../models/PanelSurvey";
 import { PanelSurveyAttempt } from "../models/PanelSurveyAttempt";
-import { PrescreenForm } from "../models/PrescreenForm";
 import { PrescreenSubmission } from "../models/PrescreenSubmission";
+import { findPublishedRequiredPanelPrescreen } from "./panel-prescreen.service";
 import { toPanelSurveyDto } from "../utils/panel-survey.dto";
 import {
   parseMemberPanelProfileFromAnswers,
@@ -14,12 +14,7 @@ import {
 } from "../utils/member-panel-profile-match";
 
 async function latestMemberSubmission(userId: string) {
-  const requiredForm = await PrescreenForm.findOne({
-    status: "published",
-    isRequiredForPanel: true
-  })
-    .select("_id")
-    .lean();
+  const requiredForm = await findPublishedRequiredPanelPrescreen();
   if (!requiredForm?._id) return null;
 
   return PrescreenSubmission.findOne({

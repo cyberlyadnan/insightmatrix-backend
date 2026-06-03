@@ -129,18 +129,40 @@ export const prescreenService = {
   },
   create: async (payload: Record<string, unknown>) => {
     const slug = await ensureUniqueSlug(String(payload.slug || payload.title || "prescreen"));
-    return PrescreenForm.create({ ...payload, slug });
+    const form = await PrescreenForm.create({ ...payload, slug });
+    if (form.isRequiredForPanel) {
+      await clearOtherRequiredPanelFlags(String(form._id));
+    }
+    return form;
   },
   updateById: async (id: string, payload: Record<string, unknown>) => {
+    if (payload.isRequiredForPanel === true) {
+      await clearOtherRequiredPanelFlags(id);
+    }
     const nextPayload = { ...payload };
     if (payload.slug || payload.title) {
       nextPayload.slug = await ensureUniqueSlug(String(payload.slug || payload.title), id);
     }
     const form = await PrescreenForm.findByIdAndUpdate(id, nextPayload, { new: true });
     if (!form) throw new ApiError(404, "Prescreen form not found");
-    if (form.status === "published" && form.isRequiredForPanel) {
+    if (form.isRequiredForPanel) {
       await clearOtherRequiredPanelFlags(String(form._id));
     }
+    return form;
+  },
+  /** Make this prescreen the sole required-for-panel form (clears others; publishes if draft). */
+  setRequiredForPanel: async (id: string) => {
+    const form = await PrescreenForm.findById(id);
+    if (!form) throw new ApiError(404, "Prescreen form not found");
+    if (form.status === "archived") {
+      throw new ApiError(400, "Archived prescreens cannot be set as required.");
+    }
+    await clearOtherRequiredPanelFlags(id);
+    form.isRequiredForPanel = true;
+    if (form.status !== "published") {
+      form.status = "published";
+    }
+    await form.save();
     return form;
   },
   deleteById: async (id: string) => {

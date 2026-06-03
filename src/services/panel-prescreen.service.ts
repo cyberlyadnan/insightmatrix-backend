@@ -29,6 +29,23 @@ export async function clearOtherRequiredPanelFlags(exceptFormId: string) {
   );
 }
 
+/** Published prescreen used for member gate + vendor/panel routing (newest if data was inconsistent). */
+export async function findPublishedRequiredPanelPrescreen() {
+  return PrescreenForm.findOne({ status: "published", isRequiredForPanel: true }).sort({
+    updatedAt: -1
+  });
+}
+
+/** Keep a single published required prescreen when multiple rows still have the flag. */
+export async function repairDuplicateRequiredPanelFlags() {
+  const flagged = await PrescreenForm.find({ isRequiredForPanel: true, status: "published" })
+    .sort({ updatedAt: -1 })
+    .select("_id")
+    .lean();
+  if (flagged.length <= 1) return;
+  await clearOtherRequiredPanelFlags(String(flagged[0]._id));
+}
+
 export async function getPanelPrescreenBundle(userId: string, role: string | undefined) {
   if (!userId || userId === "undefined" || !Types.ObjectId.isValid(userId)) {
     return {
@@ -46,7 +63,7 @@ export async function getPanelPrescreenBundle(userId: string, role: string | und
     };
   }
 
-  const form = await PrescreenForm.findOne({ status: "published", isRequiredForPanel: true });
+  const form = await findPublishedRequiredPanelPrescreen();
   if (!form) {
     return { needsCompletion: false, notConfigured: true, form: null };
   }
@@ -156,7 +173,7 @@ export async function submitPanelPrescreen(
   answers: Record<string, unknown>,
   durationMs?: number | null
 ) {
-  const form = await PrescreenForm.findOne({ status: "published", isRequiredForPanel: true });
+  const form = await findPublishedRequiredPanelPrescreen();
   if (!form) throw new ApiError(400, "Required panel prescreen is not configured.");
 
   const normalized: Record<string, unknown> = {};
