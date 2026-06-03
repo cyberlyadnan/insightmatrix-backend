@@ -66,12 +66,12 @@ export async function persistRoutingPrescreenSubmission(input: {
   }
 
   try {
+    // Filter keys (respondentProfileId, formId) are applied on insert; do not repeat them in $setOnInsert.
     await PrescreenSubmission.findOneAndUpdate(
       { respondentProfileId: input.profileId, formId: input.formId },
       {
         $set: payload,
-        $unset: { userId: "" },
-        $setOnInsert: { formId: input.formId, respondentProfileId: input.profileId }
+        $unset: { userId: "" }
       },
       { upsert: true }
     );
