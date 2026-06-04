@@ -37,7 +37,7 @@ export type GatewaySecurityConfig = {
 };
 
 export const gatewaySecurityConfig: GatewaySecurityConfig = {
-  enabled: envBool(env.SECURITY_GATEWAY_ENABLED, true),
+  enabled: envBool(env.SECURITY_GATEWAY_ENABLED, false),
   captcha: {
     enabled: envBool(env.SECURITY_CAPTCHA_ENABLED, false),
     provider: (env.RECAPTCHA_VERSION === "v2" ? "recaptcha_v2" : "recaptcha_v3") as
@@ -48,19 +48,19 @@ export const gatewaySecurityConfig: GatewaySecurityConfig = {
     minScore: Number(env.RECAPTCHA_MIN_SCORE ?? 0.5)
   },
   uniqueIp: {
-    enabled: envBool(env.SECURITY_UNIQUE_IP_ENABLED, true),
+    enabled: envBool(env.SECURITY_UNIQUE_IP_ENABLED, false),
     windowMinutes: Number(env.SECURITY_UNIQUE_IP_WINDOW_MINUTES ?? 60),
     maxHitsPerSurvey: Number(env.SECURITY_UNIQUE_IP_MAX_PER_SURVEY ?? 3),
     maxHitsPerAllocation: Number(env.SECURITY_UNIQUE_IP_MAX_PER_ALLOCATION ?? 2),
     blockOnDuplicate: envBool(env.SECURITY_UNIQUE_IP_BLOCK, true)
   },
   geo: {
-    enabled: envBool(env.SECURITY_GEO_ENABLED, true),
+    enabled: envBool(env.SECURITY_GEO_ENABLED, false),
     blockWhenSurveyCountriesConfigured: true
   },
   bot: {
-    enabled: envBool(env.SECURITY_BOT_ENABLED, true),
-    blockOnDetection: envBool(env.SECURITY_BOT_BLOCK, true)
+    enabled: envBool(env.SECURITY_BOT_ENABLED, false),
+    blockOnDetection: envBool(env.SECURITY_BOT_BLOCK, false)
   },
   vpn: {
     enabled: false

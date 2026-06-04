@@ -38,7 +38,7 @@ const schema = Joi.object({
   INVOICE_PLATFORM_NAME: Joi.string().max(200).allow(""),
   INVOICE_PLATFORM_ADDRESS: Joi.string().max(2000).allow(""),
   /** Gateway security layer */
-  SECURITY_GATEWAY_ENABLED: Joi.boolean().default(true),
+  SECURITY_GATEWAY_ENABLED: Joi.boolean().default(false),
   SECURITY_CAPTCHA_ENABLED: Joi.boolean().default(false),
   RECAPTCHA_SITE_KEY: Joi.string().allow(""),
   RECAPTCHA_SECRET_KEY: Joi.string().allow(""),
