@@ -1,7 +1,11 @@
 import dotenv from "dotenv";
 import Joi from "joi";
+import fs from "fs";
 
 dotenv.config();
+if (process.env.NODE_ENV === "production" && fs.existsSync(".env.production")) {
+  dotenv.config({ path: ".env.production", override: true });
+}
 
 const schema = Joi.object({
   NODE_ENV: Joi.string().valid("development", "production", "test").default("development"),
