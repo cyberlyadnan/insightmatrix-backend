@@ -46,18 +46,47 @@ export type GatewayRedirectResult = {
   prescreenForm?: ReturnType<typeof toPrescreenDto> | null;
 };
 
+function inferValidationStep(err: unknown): string {
+  if (!(err instanceof ApiError)) return "unknown";
+  const msg = err.message.toLowerCase();
+  if (msg.includes("captcha") || msg.includes("security verification") || msg.includes("human")) {
+    return "security_captcha";
+  }
+  if (msg.includes("quota") || msg.includes("not accepting") || msg.includes("not started") || msg.includes("ended")) {
+    return "survey_allocation_quota";
+  }
+  if (msg.includes("attempt") || msg.includes("session") || msg.includes("token")) {
+    return "session_token";
+  }
+  if (msg.includes("allocation") || msg.includes("vendor")) {
+    return "vendor_allocation";
+  }
+  if (msg.includes("prescreen")) {
+    return "prescreen";
+  }
+  return "gateway_validation";
+}
+
 async function logValidationFailure(
   channel: "panel" | "vendor",
   err: unknown,
   meta: Record<string, unknown>
 ) {
   const message = err instanceof ApiError ? err.message : "Validation failed";
+  const statusCode = err instanceof ApiError ? err.statusCode : 500;
+  const { metadata: extraMeta, ...rest } = meta;
   await logGatewayEvent({
     channel,
     action: "validation_failed",
     success: false,
     failureReason: message,
-    ...meta
+    ...rest,
+    metadata: {
+      ...(typeof extraMeta === "object" && extraMeta ? extraMeta : {}),
+      userType: channel === "panel" ? "internal" : "vendor",
+      validationStep: inferValidationStep(err),
+      httpStatus: statusCode
+    }
   });
 }
 

@@ -5,6 +5,7 @@ import { uniqueIpValidationRule } from "./rules/unique-ip.rule";
 import { geoValidationRule } from "./rules/geo.rule";
 import { proxyVpnValidationRule } from "./rules/proxy-vpn.rule";
 import { botDetectionRule } from "./rules/bot.rule";
+import { toReviewOnly } from "./security-stabilization";
 
 const RULES = [
   captchaValidationRule,
@@ -14,24 +15,47 @@ const RULES = [
   proxyVpnValidationRule
 ];
 
+/** Only captcha may hard-block; all other rules log warnings for analytics. */
+function applyStabilization(ruleName: string, result: SecurityValidationResult): SecurityValidationResult {
+  if (ruleName === "captcha") return result;
+  return toReviewOnly(ruleName, result);
+}
+
 export const securityValidationPipeline = {
   async run(ctx: SecurityTrafficContext): Promise<SecurityValidationResult> {
     let geoMeta: Record<string, unknown> = {};
+    const reviewSignals: Array<Record<string, unknown>> = [];
 
     for (const rule of RULES) {
-      const result = await rule.run(ctx);
-      if (!result) continue;
+      const raw = await rule.run(ctx);
+      if (!raw) continue;
+
+      const result = applyStabilization(rule.name, raw);
 
       if (rule.name === "geo" && result.metadata) {
         geoMeta = result.metadata;
       }
 
+      if (result.decision === "review" && result.metadata?.wouldHaveBlocked) {
+        reviewSignals.push({
+          rule: rule.name,
+          reasonCode: result.metadata.originalReasonCode ?? result.reasonCode,
+          reasonMessage: result.reasonMessage
+        });
+      }
+
       if (!result.allowed || result.decision === "block") {
-        return result;
+        return {
+          ...result,
+          metadata: { ...result.metadata, reviewSignals }
+        };
       }
 
       if (result.requiresCaptcha) {
-        return result;
+        return {
+          ...result,
+          metadata: { ...result.metadata, reviewSignals }
+        };
       }
     }
 
@@ -41,7 +65,7 @@ export const securityValidationPipeline = {
       reasonCode: SECURITY_REASON_CODES.ALLOWED,
       reasonMessage: "All security checks passed",
       publicMessage: "OK",
-      metadata: geoMeta
+      metadata: { ...geoMeta, reviewSignals }
     };
   }
 };

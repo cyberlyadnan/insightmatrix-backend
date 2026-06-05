@@ -8,6 +8,7 @@ export const GATEWAY_ROUTING_ACTIONS = [
   "validation_failed",
   "prescreen_required",
   "security_captcha_required",
+  "security_review",
   "callback_received",
   "callback_forwarded",
   "callback_forward_skipped"

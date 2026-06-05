@@ -117,7 +117,10 @@ export const securityGatewayService = {
     const result = await securityValidationPipeline.run(ctx);
     const geo = await geoLocationService.lookup(ctx.ipAddress);
     const vpn = await proxyVpnDetectionService.analyze(ctx);
-    const botDetected = result.reasonCode === "bot_detected";
+    const reviewSignals = (result.metadata?.reviewSignals as Array<Record<string, unknown>>) ?? [];
+    const botDetected =
+      result.reasonCode === "bot_detected" ||
+      reviewSignals.some((s) => s.reasonCode === "bot_detected");
 
     await securityDecisionService.logDecision(ctx, result, {
       captchaPassed: captchaVerificationService.isEnabled()
@@ -130,7 +133,46 @@ export const securityGatewayService = {
       city: geo.city
     });
 
+    if (reviewSignals.length) {
+      const { logGatewayEvent } = await import("../routing/routing-gateway.service");
+      await logGatewayEvent({
+        channel: ctx.channel,
+        action: "security_review",
+        success: true,
+        panelSurveyId: ctx.panelSurveyId,
+        vendorId: ctx.vendorId,
+        allocationId: ctx.allocationId,
+        sourceIp: ctx.ipAddress,
+        userAgent: ctx.userAgent,
+        metadata: {
+          userType: ctx.channel === "panel" ? "internal" : "vendor",
+          validationStep: "security_pipeline",
+          reviewSignals
+        }
+      });
+    }
+
     if (!result.allowed || result.decision === "block") {
+      const { logGatewayEvent } = await import("../routing/routing-gateway.service");
+      await logGatewayEvent({
+        channel: ctx.channel,
+        action: "validation_failed",
+        success: false,
+        panelSurveyId: ctx.panelSurveyId,
+        vendorId: ctx.vendorId,
+        allocationId: ctx.allocationId,
+        sourceIp: ctx.ipAddress,
+        userAgent: ctx.userAgent,
+        failureReason: result.reasonMessage,
+        metadata: {
+          userType: ctx.channel === "panel" ? "internal" : "vendor",
+          validationStep: "security_gateway",
+          reasonCode: result.reasonCode,
+          requiresCaptcha: Boolean(result.requiresCaptcha),
+          reviewSignals
+        }
+      });
+
       return {
         allowed: false,
         requiresCaptcha: Boolean(result.requiresCaptcha),

@@ -73,7 +73,7 @@ export const botDetectionService = {
       detail = "missing_accept_language";
     }
 
-    if (suspicious && gatewaySecurityConfig.bot.blockOnDetection) {
+    if (suspicious) {
       return {
         allowed: false,
         decision: "block",
@@ -81,17 +81,17 @@ export const botDetectionService = {
         reasonMessage: detail,
         publicMessage:
           "Your browser could not be verified for this survey. Please use a standard web browser.",
-        metadata: { detail }
+        metadata: { detail, suspicious: true }
       };
     }
 
     return {
       allowed: true,
-      decision: suspicious ? "review" : "allow",
-      reasonCode: suspicious ? SECURITY_REASON_CODES.BOT_DETECTED : SECURITY_REASON_CODES.ALLOWED,
-      reasonMessage: suspicious ? detail : "OK",
+      decision: "allow",
+      reasonCode: SECURITY_REASON_CODES.ALLOWED,
+      reasonMessage: "OK",
       publicMessage: "OK",
-      metadata: { suspicious, detail }
+      metadata: { suspicious: false, detail }
     };
   }
 };

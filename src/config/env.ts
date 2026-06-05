@@ -44,14 +44,14 @@ const schema = Joi.object({
   RECAPTCHA_SECRET_KEY: Joi.string().allow(""),
   RECAPTCHA_VERSION: Joi.string().valid("v2", "v3").default("v3"),
   RECAPTCHA_MIN_SCORE: Joi.number().min(0).max(1).default(0.5),
-  SECURITY_UNIQUE_IP_ENABLED: Joi.boolean().default(true),
+  SECURITY_UNIQUE_IP_ENABLED: Joi.boolean().default(false),
   SECURITY_UNIQUE_IP_WINDOW_MINUTES: Joi.number().integer().min(1).max(10080).default(60),
   SECURITY_UNIQUE_IP_MAX_PER_SURVEY: Joi.number().integer().min(1).max(1000).default(3),
   SECURITY_UNIQUE_IP_MAX_PER_ALLOCATION: Joi.number().integer().min(1).max(1000).default(2),
-  SECURITY_UNIQUE_IP_BLOCK: Joi.boolean().default(true),
-  SECURITY_GEO_ENABLED: Joi.boolean().default(true),
-  SECURITY_BOT_ENABLED: Joi.boolean().default(true),
-  SECURITY_BOT_BLOCK: Joi.boolean().default(true),
+  SECURITY_UNIQUE_IP_BLOCK: Joi.boolean().default(false),
+  SECURITY_GEO_ENABLED: Joi.boolean().default(false),
+  SECURITY_BOT_ENABLED: Joi.boolean().default(false),
+  SECURITY_BOT_BLOCK: Joi.boolean().default(false),
   GEOIP_API_URL: Joi.string().uri().default("http://ip-api.com/json")
 }).unknown();
 
