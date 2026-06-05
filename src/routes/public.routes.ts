@@ -4,10 +4,14 @@ import { publicRoutingCallbackLimiter } from '../middleware/public-callback-rate
 import { postPublicRoutingCallback } from '../controllers/public-panel-callback.controller';
 import { postVendorRoutingStart } from '../controllers/vendor-routing.controller';
 import { postPanelGatewayRedirect } from '../controllers/routing-gateway.controller';
+import { postSharedPanelSurveyAttempt } from '../controllers/panel-share-attempt.controller';
 import { postCompleteRoutingPrescreen } from '../controllers/routing-prescreen.controller';
 import { publicRoutingCallbackSchema } from '../validations/public-routing-callback.validation';
 import { vendorRoutingStartSchema } from '../validations/vendor-allocation.validation';
-import { panelGatewayRedirectSchema } from '../validations/routing-gateway.validation';
+import {
+  panelGatewayRedirectSchema,
+  panelShareStartSchema
+} from '../validations/routing-gateway.validation';
 import { completeRoutingPrescreenSchema } from '../validations/routing-prescreen.validation';
 
 const router = Router();
@@ -24,6 +28,13 @@ router.post(
   publicRoutingCallbackLimiter,
   validate(vendorRoutingStartSchema),
   postVendorRoutingStart
+);
+
+router.post(
+  "/routing/panel-share-start",
+  publicRoutingCallbackLimiter,
+  validate(panelShareStartSchema),
+  postSharedPanelSurveyAttempt
 );
 
 router.post(

@@ -1,4 +1,8 @@
 import type { PanelQuotaGroupStatus, PanelSurveyStatus } from '../constants/panel-survey';
+import {
+  buildPanelSurveyShareLink,
+  buildPanelSurveyShareLinkExample
+} from "./panel-survey-routing-link";
 
 export type PanelSurveyProviderSummary = {
   id: string;
@@ -50,6 +54,10 @@ export type PanelSurveyDto = {
   startDate: string | null;
   endDate: string | null;
   notes: string;
+  /** Public landing URL for internal team distribution (no login) */
+  panelShareLink: string;
+  /** Template with RESPONDENT_ID placeholder for tracked starts */
+  panelShareLinkExample: string;
   createdAt: string | null;
   updatedAt: string | null;
 };
@@ -194,6 +202,8 @@ export function toPanelSurveyDto(doc: {
     startDate: doc.startDate ? doc.startDate.toISOString() : null,
     endDate: doc.endDate ? doc.endDate.toISOString() : null,
     notes: doc.notes ?? "",
+    panelShareLink: buildPanelSurveyShareLink(String(doc._id)),
+    panelShareLinkExample: buildPanelSurveyShareLinkExample(String(doc._id)),
     createdAt: doc.createdAt ? doc.createdAt.toISOString() : null,
     updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : null
   };

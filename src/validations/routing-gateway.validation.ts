@@ -2,6 +2,14 @@ import Joi from "joi";
 
 const emptyObject = Joi.object({}).required();
 
+export const panelShareStartSchema = Joi.object({
+  body: Joi.object({
+    surveyId: Joi.string().hex().length(24).required()
+  }).required(),
+  params: emptyObject,
+  query: emptyObject
+});
+
 export const panelGatewayRedirectSchema = Joi.object({
   body: Joi.object({
     surveyId: Joi.string().hex().length(24).required(),

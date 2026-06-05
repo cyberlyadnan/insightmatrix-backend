@@ -18,7 +18,7 @@ export type PanelSessionContext = {
   sessionToken: string;
   panelSurveyId: Types.ObjectId;
   attemptId: Types.ObjectId;
-  userId: Types.ObjectId;
+  userId: Types.ObjectId | null;
 };
 
 export type VendorSessionContext = {
@@ -61,7 +61,7 @@ export const routingSessionService = {
       sessionToken: existing.token,
       panelSurveyId: validated.surveyId,
       attemptId: existing._id as Types.ObjectId,
-      userId: existing.userId as Types.ObjectId
+      userId: (existing.userId as Types.ObjectId | null | undefined) ?? null
     };
   },
 

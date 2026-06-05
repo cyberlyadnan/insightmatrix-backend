@@ -85,7 +85,7 @@ export const surveyRespondentProfileService = {
   async createForPanelAttempt(input: {
     panelSurveyId: Types.ObjectId;
     panelSurveyAttemptId: Types.ObjectId;
-    userId: Types.ObjectId;
+    userId: Types.ObjectId | null;
     internalSessionToken: string;
   }) {
     const existing = await surveyRespondentProfileRepository.findByPanelAttemptId(
