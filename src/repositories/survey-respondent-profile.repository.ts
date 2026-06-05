@@ -43,6 +43,15 @@ export const surveyRespondentProfileRepository = {
     return SurveyRespondentProfile.findOne({ internalSessionToken: t }).lean();
   },
 
+  /** Match internal token or vendor respondent id echoed on supplier callbacks */
+  findByParticipantRef(ref: string) {
+    const t = ref.trim();
+    if (!t) return null;
+    return SurveyRespondentProfile.findOne({
+      $or: [{ internalSessionToken: t }, { vendorRespondentToid: t }]
+    }).lean();
+  },
+
   findByPanelAttemptId(attemptId: Types.ObjectId) {
     return SurveyRespondentProfile.findOne({ panelSurveyAttemptId: attemptId }).lean();
   },

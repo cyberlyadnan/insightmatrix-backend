@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import {
   logGatewayEvent,
   validatePanelSurveyForRouting,
@@ -205,6 +206,15 @@ export const routingOrchestratorService = {
       await routingSessionService.markVendorSessionRedirected(
         session.sessionId,
         session.allocationId
+      );
+
+      const { surveyRespondentProfileRepository } = await import(
+        "../../repositories/survey-respondent-profile.repository"
+      );
+      await surveyRespondentProfileRepository.appendLifecycle(
+        profile._id as Types.ObjectId,
+        "redirected",
+        { note: "Redirected to supplier survey" }
       );
 
       await logGatewayEvent({
@@ -430,6 +440,15 @@ export const routingOrchestratorService = {
         validated.externalSurveyUrl,
         validated.trackingParameterName,
         session.sessionToken
+      );
+
+      const { surveyRespondentProfileRepository } = await import(
+        "../../repositories/survey-respondent-profile.repository"
+      );
+      await surveyRespondentProfileRepository.appendLifecycle(
+        profile._id as Types.ObjectId,
+        "redirected",
+        { note: "Redirected to supplier survey" }
       );
 
       await logGatewayEvent({

@@ -48,7 +48,7 @@ export async function tryApplyOutcomeFromRoutingEvent(
   const sessionStatus = ROUTING_EVENT_TO_SESSION_STATUS[eventType];
   if (!sessionStatus) return;
 
-  const session = await vendorRespondentSessionRepository.findByInternalToken(token);
+  const session = await vendorRespondentSessionRepository.findByParticipantRef(token);
   if (!session) return;
 
   if (TERMINAL_STATUSES.includes(session.status as VendorRespondentSessionStatus)) {

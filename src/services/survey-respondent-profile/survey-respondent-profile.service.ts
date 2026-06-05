@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { ApiError } from "../../utils/ApiError";
-import { ROUTING_EVENT_TO_SESSION_STATUS } from "../../constants/vendor-allocation";
 import type { PanelRoutingEventType } from "../../constants/panel-survey-routing";
+import { routingEventToRespondentStatus } from "../../utils/callback-participant-ref";
 import type { RespondentSurveyStatus } from "../../constants/survey-respondent";
 import { surveyRespondentProfileRepository } from "../../repositories/survey-respondent-profile.repository";
 import {
@@ -114,13 +114,16 @@ export const surveyRespondentProfileService = {
   },
 
   async applyOutcomeFromRoutingEvent(
-    internalToken: string,
+    participantRef: string,
     eventType: PanelRoutingEventType
   ) {
-    const sessionStatus = ROUTING_EVENT_TO_SESSION_STATUS[eventType];
+    const ref = participantRef.trim();
+    if (!ref) return;
+
+    const sessionStatus = routingEventToRespondentStatus(eventType);
     if (!sessionStatus) return;
 
-    const profile = await surveyRespondentProfileRepository.findByInternalToken(internalToken);
+    const profile = await surveyRespondentProfileRepository.findByParticipantRef(ref);
     if (!profile) return;
     if (TERMINAL.includes(profile.surveyStatus as RespondentSurveyStatus)) return;
 

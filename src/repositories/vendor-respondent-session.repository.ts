@@ -30,9 +30,19 @@ export const vendorRespondentSessionRepository = {
   },
 
   findByInternalToken(internalSessionToken: string) {
-    const token = internalSessionToken.trim();
+    return this.findByParticipantRef(internalSessionToken);
+  },
+
+  findByParticipantRef(ref: string) {
+    const token = ref.trim();
+    if (!token) return null;
     return VendorRespondentSession.findOne({
-      $or: [{ internalSessionToken: token }, { sessionToken: token }]
+      $or: [
+        { internalSessionToken: token },
+        { sessionToken: token },
+        { vendorRespondentToid: token },
+        { vendorRespondentId: token }
+      ]
     }).lean();
   },
 

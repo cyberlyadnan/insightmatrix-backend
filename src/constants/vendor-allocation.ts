@@ -23,6 +23,7 @@ export const ROUTING_EVENT_TO_SESSION_STATUS: Record<
 > = {
   complete: "complete",
   terminate: "terminate",
+  screenout: "terminate",
   quota_full: "quota_full",
   quality_reject: "quality_reject"
 };

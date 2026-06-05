@@ -128,7 +128,7 @@ export const routingSessionService = {
     const token = participantRef.trim();
     if (!token) return null;
 
-    const vendorSession = await vendorRespondentSessionRepository.findByInternalToken(token);
+    const vendorSession = await vendorRespondentSessionRepository.findByParticipantRef(token);
     if (vendorSession) {
       return {
         type: "vendor",
@@ -155,7 +155,7 @@ export const routingSessionService = {
         sessionToken: token,
         panelSurveyId: panelAttempt.panelSurveyId as Types.ObjectId,
         attemptId: panelAttempt._id as Types.ObjectId,
-        userId: panelAttempt.userId as Types.ObjectId
+        userId: (panelAttempt.userId as Types.ObjectId | null | undefined) ?? null
       };
     }
 

@@ -8,6 +8,7 @@ import { Vendor } from "../../models/Vendor";
 import { logGatewayEvent } from "./routing-gateway.service";
 import { routingSessionService } from "./routing-session.service";
 import { surveyRespondentProfileService } from "../survey-respondent-profile/survey-respondent-profile.service";
+import { extractSupplierParticipantRef } from "../../utils/callback-participant-ref";
 
 export type SupplierCallbackPayload = {
   supplierProjectPid: string;
@@ -35,7 +36,7 @@ export type SupplierCallbackResult = {
 export async function processSupplierCallback(
   payload: SupplierCallbackPayload
 ): Promise<SupplierCallbackResult> {
-  const participantRef = String(payload.supplierParticipantRef ?? "").trim();
+  const participantRef = extractSupplierParticipantRef(payload);
 
   await logGatewayEvent({
     channel: "vendor",
@@ -52,7 +53,7 @@ export async function processSupplierCallback(
     eventType: payload.eventType,
     quotaGroupId: payload.quotaGroupId,
     quotaGroupName: payload.quotaGroupName,
-    supplierParticipantRef: payload.supplierParticipantRef,
+    supplierParticipantRef: participantRef || payload.supplierParticipantRef,
     meta: payload.meta ?? null
   });
 
