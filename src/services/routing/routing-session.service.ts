@@ -19,6 +19,7 @@ export type PanelSessionContext = {
   panelSurveyId: Types.ObjectId;
   attemptId: Types.ObjectId;
   userId: Types.ObjectId | null;
+  externalParticipantRef: string;
 };
 
 export type VendorSessionContext = {
@@ -61,7 +62,8 @@ export const routingSessionService = {
       sessionToken: existing.token,
       panelSurveyId: validated.surveyId,
       attemptId: existing._id as Types.ObjectId,
-      userId: (existing.userId as Types.ObjectId | null | undefined) ?? null
+      userId: (existing.userId as Types.ObjectId | null | undefined) ?? null,
+      externalParticipantRef: String(existing.externalParticipantRef ?? "").trim()
     };
   },
 
@@ -155,7 +157,8 @@ export const routingSessionService = {
         sessionToken: token,
         panelSurveyId: panelAttempt.panelSurveyId as Types.ObjectId,
         attemptId: panelAttempt._id as Types.ObjectId,
-        userId: (panelAttempt.userId as Types.ObjectId | null | undefined) ?? null
+        userId: (panelAttempt.userId as Types.ObjectId | null | undefined) ?? null,
+        externalParticipantRef: String(panelAttempt.externalParticipantRef ?? "").trim()
       };
     }
 

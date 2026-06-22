@@ -7,6 +7,8 @@ const panelSurveyAttemptSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null, index: true },
     panelSurveyId: { type: mongoose.Schema.Types.ObjectId, ref: "PanelSurvey", required: true, index: true },
     token: { type: String, required: true, unique: true, trim: true, maxlength: 64, index: true },
+    /** Admin-supplied respondent id from share link (toid, pid, gid, etc.) */
+    externalParticipantRef: { type: String, trim: true, maxlength: 200, default: "", index: true },
     supplierProjectPidSnapshot: { type: String, trim: true, maxlength: 200, default: "" },
     status: {
       type: String,

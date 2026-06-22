@@ -428,7 +428,8 @@ export const routingOrchestratorService = {
         panelSurveyId: validated.surveyId,
         panelSurveyAttemptId: session.attemptId,
         userId: session.userId,
-        internalSessionToken: session.sessionToken
+        internalSessionToken: session.sessionToken,
+        externalParticipantRef: session.externalParticipantRef
       });
 
       const prescreen = await getUniversalRoutingPrescreenForm();

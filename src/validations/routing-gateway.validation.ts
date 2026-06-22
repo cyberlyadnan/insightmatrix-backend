@@ -4,7 +4,9 @@ const emptyObject = Joi.object({}).required();
 
 export const panelShareStartSchema = Joi.object({
   body: Joi.object({
-    surveyId: Joi.string().hex().length(24).required()
+    surveyId: Joi.string().hex().length(24).required(),
+    externalParticipantRef: Joi.string().trim().max(200).allow("", null),
+    attemptToken: Joi.string().trim().min(8).max(128).allow("", null)
   }).required(),
   params: emptyObject,
   query: emptyObject

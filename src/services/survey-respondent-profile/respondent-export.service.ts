@@ -22,7 +22,7 @@ const CSV_HEADERS = [
   "survey_name",
   "survey_code",
   "allocation_code",
-  "vendor_toid",
+  "tracking_id",
   "internal_token",
   "survey_status",
   "prescreen_completed_at",

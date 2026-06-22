@@ -7,7 +7,12 @@ export function buildPanelSurveyShareLink(surveyId: string): string {
   return `${base}/survey/start/${encodeURIComponent(id)}`;
 }
 
-/** Same as panelShareLink — im_attempt is auto-created when the link is opened */
-export function buildPanelSurveyShareLinkExample(surveyId: string): string {
-  return buildPanelSurveyShareLink(surveyId);
+/** Copy template — replace RESPONDENT_ID with each respondent's id (toid, pid, gid, etc.) */
+export function buildPanelSurveyShareLinkExample(
+  surveyId: string,
+  participantQueryParam = "toid"
+): string {
+  const base = buildPanelSurveyShareLink(surveyId);
+  const key = String(participantQueryParam || "pid").trim() || "pid";
+  return `${base}?${encodeURIComponent(key)}=RESPONDENT_ID`;
 }

@@ -1,5 +1,6 @@
 import { VendorSurveyAllocation } from "../../models/VendorSurveyAllocation";
 import { VendorRespondentSession } from "../../models/VendorRespondentSession";
+import { PanelSurveyAttempt } from "../../models/PanelSurveyAttempt";
 import {
   TOKEN_BODY_LENGTH,
   TOKEN_PREFIX_ALLOCATION,
@@ -35,10 +36,13 @@ export const tokenGeneratorService = {
   async generateUniqueInternalSessionToken(): Promise<string> {
     for (let attempt = 0; attempt < 16; attempt++) {
       const token = this.generateInternalSessionToken();
-      const exists = await VendorRespondentSession.exists({
-        $or: [{ sessionToken: token }, { internalSessionToken: token }]
-      });
-      if (!exists) return token;
+      const [vendorExists, panelExists] = await Promise.all([
+        VendorRespondentSession.exists({
+          $or: [{ sessionToken: token }, { internalSessionToken: token }]
+        }),
+        PanelSurveyAttempt.exists({ token })
+      ]);
+      if (!vendorExists && !panelExists) return token;
     }
     throw new Error("Failed to generate unique internal session token");
   }

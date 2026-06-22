@@ -53,6 +53,7 @@ export type ValidatedPanelSurvey = {
   externalSurveyUrl: string;
   trackingParameterName: string;
   supplierProjectPid: string;
+  participantQueryParam: string;
 };
 
 export type ValidatedVendorAllocation = {
@@ -113,7 +114,8 @@ export async function validatePanelSurveyForRouting(
     surveyId: survey._id as Types.ObjectId,
     externalSurveyUrl,
     trackingParameterName: String(survey.trackingParameterName ?? "toid").trim() || "toid",
-    supplierProjectPid
+    supplierProjectPid,
+    participantQueryParam: String(survey.participantQueryParam ?? "toid").trim() || "toid"
   };
 }
 

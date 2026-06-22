@@ -10,6 +10,9 @@ export type SurveyRespondentProfileDto = {
   panelSurveyAttemptId: string | null;
   prescreenFormId: string | null;
   respondentOwnerType: string;
+  /** Vendor toid or internal-team id from share link (pid, gid, etc.) */
+  trackingParticipantId: string;
+  /** @deprecated use trackingParticipantId — kept for API compatibility */
   vendorRespondentToid: string;
   internalSessionToken: string;
   prescreenAnswers: Record<string, unknown> | null;
@@ -80,6 +83,7 @@ export function toSurveyRespondentProfileDto(
     panelSurveyAttemptId: doc.panelSurveyAttemptId ? String(doc.panelSurveyAttemptId) : null,
     prescreenFormId: doc.prescreenFormId ? String(doc.prescreenFormId) : null,
     respondentOwnerType: String(doc.respondentOwnerType ?? ""),
+    trackingParticipantId: String(doc.vendorRespondentToid ?? ""),
     vendorRespondentToid: String(doc.vendorRespondentToid ?? ""),
     internalSessionToken: String(doc.internalSessionToken ?? ""),
     prescreenAnswers:

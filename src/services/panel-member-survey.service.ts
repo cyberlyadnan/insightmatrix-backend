@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import { Types } from "mongoose";
 import { ApiError } from "../utils/ApiError";
 import { ROLES } from "../constants/roles";
@@ -7,6 +6,7 @@ import { PanelSurveyAttempt } from "../models/PanelSurveyAttempt";
 import { PrescreenSubmission } from "../models/PrescreenSubmission";
 import { findPublishedRequiredPanelPrescreen } from "./panel-prescreen.service";
 import { toPanelSurveyDto } from "../utils/panel-survey.dto";
+import { tokenGeneratorService } from "./token/token-generator.service";
 import {
   parseMemberPanelProfileFromAnswers,
   pointsFromPayout,
@@ -172,7 +172,7 @@ export async function startPanelSurveyAttempt(userId: string, surveyId: string, 
     throw new ApiError(403, "Maximum attempts for this survey have been used.");
   }
 
-  const token = crypto.randomBytes(12).toString("hex");
+  const token = await tokenGeneratorService.generateUniqueInternalSessionToken();
   const pid = String(survey.supplierProjectPid ?? "").trim();
   if (!pid) throw new ApiError(400, "Survey is missing supplier project id (pid) for tracking");
 

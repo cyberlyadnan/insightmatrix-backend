@@ -54,7 +54,7 @@ const panelSurveySchema = new mongoose.Schema(
     supplierProjectPid: { type: String, trim: true, maxlength: 200, default: "", index: true },
     trackingParameterName: { type: String, trim: true, maxlength: 80, default: "toid" },
     /** Query key on OUR landing URL (?pid=…) supplied by the router; forwarded to supplier as `trackingParameterName` */
-    participantQueryParam: { type: String, trim: true, maxlength: 80, default: "pid" },
+    participantQueryParam: { type: String, trim: true, maxlength: 80, default: "toid" },
 
     targetCountries: { type: [String], default: [] },
     targetGender: {

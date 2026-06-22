@@ -56,6 +56,14 @@ export const surveyRespondentProfileRepository = {
     return SurveyRespondentProfile.findOne({ panelSurveyAttemptId: attemptId }).lean();
   },
 
+  updateTrackingParticipantId(id: Types.ObjectId, trackingParticipantId: string) {
+    return SurveyRespondentProfile.findByIdAndUpdate(
+      id,
+      { $set: { vendorRespondentToid: trackingParticipantId.trim().slice(0, 500) } },
+      { new: true }
+    ).lean();
+  },
+
   create(payload: Record<string, unknown>) {
     return SurveyRespondentProfile.create(payload);
   },

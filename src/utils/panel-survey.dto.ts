@@ -178,7 +178,7 @@ export function toPanelSurveyDto(doc: {
     externalSurveyUrl: doc.externalSurveyUrl,
     supplierProjectPid: doc.supplierProjectPid ?? "",
     trackingParameterName: doc.trackingParameterName ?? "toid",
-    participantQueryParam: doc.participantQueryParam ?? "pid",
+    participantQueryParam: doc.participantQueryParam ?? "toid",
     targetCountries: doc.targetCountries ?? [],
     targetGender: doc.targetGender ?? "all",
     targetAgeMin: doc.targetAgeMin ?? null,
@@ -203,7 +203,10 @@ export function toPanelSurveyDto(doc: {
     endDate: doc.endDate ? doc.endDate.toISOString() : null,
     notes: doc.notes ?? "",
     panelShareLink: buildPanelSurveyShareLink(String(doc._id)),
-    panelShareLinkExample: buildPanelSurveyShareLinkExample(String(doc._id)),
+    panelShareLinkExample: buildPanelSurveyShareLinkExample(
+      String(doc._id),
+      doc.participantQueryParam ?? "toid"
+    ),
     createdAt: doc.createdAt ? doc.createdAt.toISOString() : null,
     updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : null
   };
@@ -231,7 +234,7 @@ export function toPanelSurveyPublicDto(doc: {
     surveyStatus: doc.surveyStatus,
     externalSurveyUrl: doc.externalSurveyUrl,
     trackingParameterName: doc.trackingParameterName ?? "toid",
-    participantQueryParam: doc.participantQueryParam ?? "pid",
+    participantQueryParam: doc.participantQueryParam ?? "toid",
     providerName: summary?.companyName ?? null,
     providerCode: summary?.companyCode ?? null
   };

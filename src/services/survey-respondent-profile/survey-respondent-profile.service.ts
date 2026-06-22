@@ -87,11 +87,25 @@ export const surveyRespondentProfileService = {
     panelSurveyAttemptId: Types.ObjectId;
     userId: Types.ObjectId | null;
     internalSessionToken: string;
+    externalParticipantRef?: string;
   }) {
     const existing = await surveyRespondentProfileRepository.findByPanelAttemptId(
       input.panelSurveyAttemptId
     );
-    if (existing) return existing;
+    const externalRef = String(input.externalParticipantRef ?? "").trim();
+    if (existing) {
+      if (externalRef && !String(existing.vendorRespondentToid ?? "").trim()) {
+        await surveyRespondentProfileRepository.updateTrackingParticipantId(
+          existing._id as Types.ObjectId,
+          externalRef
+        );
+        return {
+          ...existing,
+          vendorRespondentToid: externalRef
+        };
+      }
+      return existing;
+    }
 
     const prescreen = await getUniversalRoutingPrescreenForm();
     const doc = await surveyRespondentProfileRepository.create({
@@ -99,13 +113,17 @@ export const surveyRespondentProfileService = {
       panelSurveyAttemptId: input.panelSurveyAttemptId,
       userId: input.userId,
       respondentOwnerType: "internal",
+      vendorRespondentToid: externalRef,
       internalSessionToken: input.internalSessionToken,
       prescreenFormId: prescreen.form?._id ?? null,
       surveyStatus: prescreen.configured ? "prescreen_pending" : "started",
+      trafficSource: externalRef ? "internal_share_link" : "",
       lifecycleHistory: [
         {
           status: prescreen.configured ? "prescreen_pending" : "started",
-          note: "Panel attempt session created",
+          note: externalRef
+            ? `Internal share link session (${externalRef})`
+            : "Panel attempt session created",
           at: new Date()
         }
       ]
