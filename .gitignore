@@ -14,3 +14,4 @@ src/uploads/*
 !src/uploads/.gitkeep
 src/logs/*
 !src/logs/.gitkeep
+exports/

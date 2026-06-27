@@ -4,7 +4,11 @@ import { SurveyCompany } from '../models/SurveyCompany';
 import { PanelSurvey } from '../models/PanelSurvey';
 import { panelSurveyRepository, type PanelSurveyFilter } from '../repositories/panel-survey.repository';
 import type { PanelSurveyStatus } from '../constants/panel-survey';
-import { extractSupplierProjectPidFromUrl } from '../utils/supplier-survey-url';
+import {
+  extractSupplierProjectPidFromUrl,
+  inferTrackingParameterFromUrl,
+  normalizeMalformedSupplierUrl
+} from '../utils/supplier-survey-url';
 import { companySurveyPaymentService } from './company-survey-payment.service';
 
 const SORT_FIELDS = [
@@ -37,7 +41,7 @@ function isMongoDuplicateKey(error: unknown): boolean {
 
 function normalizeParticipantQueryParam(v: unknown): string {
   const s = String(v ?? "").trim();
-  if (!s) return "pid";
+  if (!s) return "toid";
   if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,79}$/.test(s)) {
     throw new ApiError(
       400,
@@ -50,6 +54,25 @@ function normalizeParticipantQueryParam(v: unknown): string {
 function normalizeTrackingParameterName(v: unknown): string {
   const s = String(v ?? "").trim();
   return s || "toid";
+}
+
+function resolveTrackingParameterName(
+  payload: Record<string, unknown>,
+  entryUrl: string
+): string {
+  const explicit =
+    payload.trackingParameterName !== undefined
+      ? String(payload.trackingParameterName ?? "").trim()
+      : "";
+  const inferred = inferTrackingParameterFromUrl(entryUrl);
+  if (inferred && (!explicit || explicit === "toid")) {
+    return inferred;
+  }
+  return normalizeTrackingParameterName(explicit || inferred);
+}
+
+function prepareExternalSurveyUrl(entryUrl: string): string {
+  return normalizeMalformedSupplierUrl(entryUrl);
 }
 
 /** Non-empty explicit override wins; otherwise parse `pid` from partner survey URL */
@@ -71,8 +94,9 @@ export const panelSurveyService = {
       if (!exists) throw new ApiError(400, "Provider not found");
     }
     payload.participantQueryParam = normalizeParticipantQueryParam(payload.participantQueryParam);
-    payload.trackingParameterName = normalizeTrackingParameterName(payload.trackingParameterName);
-    const entryUrl = String(payload.externalSurveyUrl ?? "").trim();
+    const entryUrl = prepareExternalSurveyUrl(String(payload.externalSurveyUrl ?? "").trim());
+    payload.externalSurveyUrl = entryUrl;
+    payload.trackingParameterName = resolveTrackingParameterName(payload, entryUrl);
     payload.supplierProjectPid = resolveSupplierProjectPid(payload, entryUrl);
     try {
       const created = await panelSurveyRepository.create(payload);
@@ -182,17 +206,30 @@ export const panelSurveyService = {
     if (payload.participantQueryParam !== undefined) {
       payload.participantQueryParam = normalizeParticipantQueryParam(payload.participantQueryParam);
     }
-    if (payload.trackingParameterName !== undefined) {
-      payload.trackingParameterName = normalizeTrackingParameterName(payload.trackingParameterName);
-    }
     if (payload.externalSurveyUrl !== undefined || payload.supplierProjectPid !== undefined) {
       const current = await panelSurveyRepository.findById(id);
       if (!current) throw new ApiError(404, "Survey not found");
       const mergedUrl =
         payload.externalSurveyUrl !== undefined
-          ? String(payload.externalSurveyUrl).trim()
+          ? prepareExternalSurveyUrl(String(payload.externalSurveyUrl).trim())
           : current.externalSurveyUrl;
+      if (payload.externalSurveyUrl !== undefined) {
+        payload.externalSurveyUrl = mergedUrl;
+      }
+      if (payload.trackingParameterName !== undefined || payload.externalSurveyUrl !== undefined) {
+        payload.trackingParameterName = resolveTrackingParameterName(
+          {
+            trackingParameterName:
+              payload.trackingParameterName !== undefined
+                ? payload.trackingParameterName
+                : current.trackingParameterName
+          },
+          mergedUrl
+        );
+      }
       payload.supplierProjectPid = resolveSupplierProjectPid(payload, mergedUrl);
+    } else if (payload.trackingParameterName !== undefined) {
+      payload.trackingParameterName = normalizeTrackingParameterName(payload.trackingParameterName);
     }
     try {
       const doc = await panelSurveyRepository.updateById(id, payload);

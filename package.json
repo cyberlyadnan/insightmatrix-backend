@@ -15,7 +15,8 @@
     "seed:admin": "tsx scripts/seed-admin.ts",
     "seed:survey-providers": "tsx scripts/seed-survey-providers.ts",
     "seed:panel-surveys": "tsx scripts/seed-panel-surveys.ts",
-    "seed:vendor": "tsx scripts/seed-vendor.ts"
+    "seed:vendor": "tsx scripts/seed-vendor.ts",
+    "export:survey-links": "tsx scripts/export-survey-links.ts"
   },
   "keywords": [
     "express",
