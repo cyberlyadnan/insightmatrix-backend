@@ -1,5 +1,7 @@
 import { Types } from "mongoose";
 import { SurveyRespondentProfile } from "../models/SurveyRespondentProfile";
+import { PanelSurvey } from "../models/PanelSurvey";
+import { escapeRegex } from "../utils/escape-regex";
 import type { RespondentSurveyStatus } from "../constants/survey-respondent";
 
 export type RespondentProfileListFilter = {
@@ -18,6 +20,36 @@ export type RespondentProfileListFilter = {
 function pageMeta(total: number, page: number, pageSize: number) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   return { page, pageSize, total, totalPages };
+}
+
+async function buildRespondentSearchOr(search: string): Promise<Record<string, unknown>[]> {
+  const s = search.trim();
+  const regex = { $regex: escapeRegex(s), $options: "i" };
+  const conditions: Record<string, unknown>[] = [
+    { vendorRespondentToid: regex },
+    { internalSessionToken: regex }
+  ];
+
+  if (Types.ObjectId.isValid(s)) {
+    conditions.push({ panelSurveyId: new Types.ObjectId(s) });
+  }
+
+  const matchingSurveys = await PanelSurvey.find({
+    $or: [
+      { surveyName: regex },
+      { surveyCode: regex },
+      { externalSurveyId: regex },
+      { supplierProjectPid: regex }
+    ]
+  })
+    .select("_id")
+    .lean();
+
+  for (const survey of matchingSurveys) {
+    conditions.push({ panelSurveyId: survey._id });
+  }
+
+  return conditions;
 }
 
 export const surveyRespondentProfileRepository = {
@@ -102,11 +134,7 @@ export const surveyRespondentProfileRepository = {
     if (filter.surveyStatus) q.surveyStatus = filter.surveyStatus;
     if (filter.respondentOwnerType) q.respondentOwnerType = filter.respondentOwnerType;
     if (filter.search?.trim()) {
-      const s = filter.search.trim();
-      q.$or = [
-        { vendorRespondentToid: { $regex: s, $options: "i" } },
-        { internalSessionToken: { $regex: s, $options: "i" } }
-      ];
+      q.$or = await buildRespondentSearchOr(filter.search);
     }
     if (filter.dateFrom || filter.dateTo) {
       q.createdAt = {};

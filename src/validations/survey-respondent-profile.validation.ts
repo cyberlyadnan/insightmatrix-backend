@@ -30,7 +30,7 @@ export const surveyRespondentProfileIdParamsSchema = Joi.object({
 
 export const exportRespondentsSchema = Joi.object({
   body: Joi.object({
-    format: Joi.string().valid("csv", "xlsx").default("csv"),
+    format: Joi.string().valid("csv", "xlsx", "pdf").default("csv"),
     vendorId: Joi.string().hex().length(24),
     panelSurveyId: Joi.string().hex().length(24),
     allocationId: Joi.string().hex().length(24),

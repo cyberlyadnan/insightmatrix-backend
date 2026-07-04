@@ -1,4 +1,5 @@
 import { ApiError } from '../utils/ApiError';
+import { escapeRegex } from '../utils/escape-regex';
 import { logger } from '../config/logger';
 import { SurveyCompany } from '../models/SurveyCompany';
 import { PanelSurvey } from '../models/PanelSurvey';
@@ -37,6 +38,37 @@ type ListParams = {
 
 function isMongoDuplicateKey(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: number }).code === 11000;
+}
+
+async function assertUniqueSurveyFields(
+  fields: { surveyName?: string; surveyCode?: string; externalSurveyId?: string },
+  excludeId?: string
+) {
+  const exclude = excludeId ? { _id: { $ne: excludeId } } : {};
+
+  if (fields.surveyCode?.trim()) {
+    const code = fields.surveyCode.trim().toUpperCase();
+    const clash = await PanelSurvey.findOne({ surveyCode: code, ...exclude });
+    if (clash) throw new ApiError(409, "Survey code already exists");
+  }
+
+  if (fields.surveyName?.trim()) {
+    const name = fields.surveyName.trim();
+    const clash = await PanelSurvey.findOne({
+      surveyName: { $regex: `^${escapeRegex(name)}$`, $options: "i" },
+      ...exclude
+    });
+    if (clash) throw new ApiError(409, "Survey name already exists");
+  }
+
+  const externalId = fields.externalSurveyId?.trim();
+  if (externalId) {
+    const clash = await PanelSurvey.findOne({
+      externalSurveyId: { $regex: `^${escapeRegex(externalId)}$`, $options: "i" },
+      ...exclude
+    });
+    if (clash) throw new ApiError(409, "External survey ID already exists");
+  }
 }
 
 function normalizeParticipantQueryParam(v: unknown): string {
@@ -98,6 +130,11 @@ export const panelSurveyService = {
     payload.externalSurveyUrl = entryUrl;
     payload.trackingParameterName = resolveTrackingParameterName(payload, entryUrl);
     payload.supplierProjectPid = resolveSupplierProjectPid(payload, entryUrl);
+    await assertUniqueSurveyFields({
+      surveyName: String(payload.surveyName ?? ""),
+      surveyCode: String(payload.surveyCode ?? ""),
+      externalSurveyId: String(payload.externalSurveyId ?? "")
+    });
     try {
       const created = await panelSurveyRepository.create(payload);
       if (!created) throw new ApiError(500, "Failed to load survey after create");
@@ -113,7 +150,9 @@ export const panelSurveyService = {
       return created;
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      if (isMongoDuplicateKey(error)) throw new ApiError(409, "Survey code already exists");
+      if (isMongoDuplicateKey(error)) {
+        throw new ApiError(409, "Survey code already exists");
+      }
       throw error;
     }
   },
@@ -195,14 +234,21 @@ export const panelSurveyService = {
       if (!exists) throw new ApiError(400, "Provider not found");
     }
     if (typeof payload.surveyCode === "string") {
-      const code = payload.surveyCode.trim().toUpperCase();
-      const clash = await PanelSurvey.findOne({
-        surveyCode: code,
-        _id: { $ne: id }
-      });
-      if (clash) throw new ApiError(409, "Survey code already exists");
-      payload.surveyCode = code;
+      payload.surveyCode = payload.surveyCode.trim().toUpperCase();
     }
+    await assertUniqueSurveyFields(
+      {
+        surveyName:
+          payload.surveyName !== undefined ? String(payload.surveyName ?? "") : undefined,
+        surveyCode:
+          payload.surveyCode !== undefined ? String(payload.surveyCode ?? "") : undefined,
+        externalSurveyId:
+          payload.externalSurveyId !== undefined
+            ? String(payload.externalSurveyId ?? "")
+            : undefined
+      },
+      id
+    );
     if (payload.participantQueryParam !== undefined) {
       payload.participantQueryParam = normalizeParticipantQueryParam(payload.participantQueryParam);
     }

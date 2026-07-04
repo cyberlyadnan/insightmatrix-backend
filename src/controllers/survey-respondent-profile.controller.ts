@@ -4,7 +4,8 @@ import { ApiError } from "../utils/ApiError";
 import { surveyRespondentProfileService } from "../services/survey-respondent-profile/survey-respondent-profile.service";
 import {
   streamRespondentCsvRows,
-  buildRespondentXlsxBuffer
+  buildRespondentXlsxBuffer,
+  buildRespondentPdfBuffer
 } from "../services/survey-respondent-profile/respondent-export.service";
 
 export const listSurveyRespondentProfiles = asyncHandler(async (req, res) => {
@@ -62,6 +63,16 @@ export const exportSurveyRespondents = asyncHandler(async (req, res) => {
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="respondents-${Date.now()}.xls"`
+    );
+    return res.send(buffer);
+  }
+
+  if (body.format === "pdf") {
+    const buffer = await buildRespondentPdfBuffer(filter);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="respondents-${Date.now()}.pdf"`
     );
     return res.send(buffer);
   }
