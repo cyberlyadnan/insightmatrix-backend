@@ -5,8 +5,47 @@ import { surveyRespondentProfileService } from "../services/survey-respondent-pr
 import {
   streamRespondentCsvRows,
   buildRespondentXlsxBuffer,
-  buildRespondentPdfBuffer
+  buildRespondentPdfBuffer,
+  countExportRows,
+  resolveExportMeta,
+  formatSurveyStatusLabel
 } from "../services/survey-respondent-profile/respondent-export.service";
+import { Vendor } from "../models/Vendor";
+import { PanelSurvey } from "../models/PanelSurvey";
+import { Types } from "mongoose";
+
+async function resolveFilterLabels(filter: {
+  vendorId?: string;
+  panelSurveyId?: string;
+  surveyStatus?: string;
+}) {
+  let surveyName = "";
+  let vendorName = "";
+
+  if (filter.panelSurveyId && Types.ObjectId.isValid(filter.panelSurveyId)) {
+    const survey = await PanelSurvey.findById(filter.panelSurveyId)
+      .select("surveyName surveyCode")
+      .lean();
+    if (survey) {
+      surveyName = `${survey.surveyName} (${survey.surveyCode})`;
+    }
+  }
+
+  if (filter.vendorId && Types.ObjectId.isValid(filter.vendorId)) {
+    const vendor = await Vendor.findById(filter.vendorId).select("companyName vendorCode").lean();
+    if (vendor) {
+      vendorName = `${vendor.companyName} (${vendor.vendorCode})`;
+    }
+  }
+
+  return {
+    surveyName: surveyName || (filter.panelSurveyId ? filter.panelSurveyId : "All surveys"),
+    vendorName: vendorName || (filter.vendorId ? filter.vendorId : "All vendors"),
+    statusLabel: filter.surveyStatus?.trim()
+      ? formatSurveyStatusLabel(filter.surveyStatus)
+      : "All"
+  };
+}
 
 export const listSurveyRespondentProfiles = asyncHandler(async (req, res) => {
   const q = req.validatedQuery ?? req.query;
@@ -43,45 +82,72 @@ export const getRespondentAnalytics = asyncHandler(async (req, res) => {
 });
 
 export const exportSurveyRespondents = asyncHandler(async (req, res) => {
-  const body = req.body;
-  const filter = {
-    vendorId: body.vendorId,
-    panelSurveyId: body.panelSurveyId,
-    allocationId: body.allocationId,
-    surveyStatus: body.surveyStatus,
-    respondentOwnerType: body.respondentOwnerType,
-    dateFrom: body.dateFrom,
-    dateTo: body.dateTo
+  const body = req.body as {
+    format?: "csv" | "xlsx" | "pdf";
+    vendorId?: string;
+    panelSurveyId?: string;
+    allocationId?: string;
+    surveyStatus?: string;
+    respondentOwnerType?: "internal" | "vendor";
+    dateFrom?: string;
+    dateTo?: string;
   };
 
-  if (body.format === "xlsx") {
+  const dateFrom = body.dateFrom?.trim() || undefined;
+  const dateTo = body.dateTo?.trim() || undefined;
+
+  if (dateFrom && dateTo) {
+    const from = new Date(dateFrom);
+    const to = new Date(dateTo);
+    if (!Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime()) && from > to) {
+      throw new ApiError(400, "Please select a valid date range.");
+    }
+  }
+
+  const filter = {
+    vendorId: body.vendorId?.trim() || undefined,
+    panelSurveyId: body.panelSurveyId?.trim() || undefined,
+    allocationId: body.allocationId?.trim() || undefined,
+    surveyStatus: body.surveyStatus?.trim() || undefined,
+    respondentOwnerType: body.respondentOwnerType,
+    dateFrom,
+    dateTo
+  };
+
+  const total = await countExportRows(filter);
+  if (total === 0) {
+    throw new ApiError(404, "No records found for the selected filters.");
+  }
+
+  const format = body.format ?? "csv";
+  const stamp = Date.now();
+
+  if (format === "xlsx") {
     const buffer = await buildRespondentXlsxBuffer(filter);
     res.setHeader(
       "Content-Type",
-      "application/vnd.ms-excel"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="respondents-${Date.now()}.xls"`
-    );
+    res.setHeader("Content-Disposition", `attachment; filename="survey-export-${stamp}.xlsx"`);
     return res.send(buffer);
   }
 
-  if (body.format === "pdf") {
-    const buffer = await buildRespondentPdfBuffer(filter);
+  if (format === "pdf") {
+    const labels = await resolveFilterLabels(filter);
+    const meta = await resolveExportMeta(filter, {
+      surveyName: labels.surveyName,
+      vendorName: labels.vendorName
+    });
+    meta.statusLabel = labels.statusLabel;
+
+    const buffer = await buildRespondentPdfBuffer(filter, { meta });
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="respondents-${Date.now()}.pdf"`
-    );
+    res.setHeader("Content-Disposition", `attachment; filename="survey-export-${stamp}.pdf"`);
     return res.send(buffer);
   }
 
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="respondents-${Date.now()}.csv"`
-  );
+  res.setHeader("Content-Disposition", `attachment; filename="survey-export-${stamp}.csv"`);
 
   for await (const chunk of streamRespondentCsvRows(filter)) {
     res.write(chunk);

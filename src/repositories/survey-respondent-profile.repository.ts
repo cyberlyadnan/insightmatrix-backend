@@ -1,4 +1,5 @@
-import { Types } from "mongoose";
+import type { Types } from "mongoose";
+import { Types as MongooseTypes } from "mongoose";
 import { SurveyRespondentProfile } from "../models/SurveyRespondentProfile";
 import { PanelSurvey } from "../models/PanelSurvey";
 import { escapeRegex } from "../utils/escape-regex";
@@ -8,7 +9,7 @@ export type RespondentProfileListFilter = {
   vendorId?: string;
   panelSurveyId?: string;
   allocationId?: string;
-  surveyStatus?: RespondentSurveyStatus;
+  surveyStatus?: RespondentSurveyStatus | string;
   respondentOwnerType?: "internal" | "vendor";
   search?: string;
   dateFrom?: string;
@@ -30,8 +31,8 @@ async function buildRespondentSearchOr(search: string): Promise<Record<string, u
     { internalSessionToken: regex }
   ];
 
-  if (Types.ObjectId.isValid(s)) {
-    conditions.push({ panelSurveyId: new Types.ObjectId(s) });
+  if (MongooseTypes.ObjectId.isValid(s)) {
+    conditions.push({ panelSurveyId: new MongooseTypes.ObjectId(s) });
   }
 
   const matchingSurveys = await PanelSurvey.find({
@@ -52,9 +53,70 @@ async function buildRespondentSearchOr(search: string): Promise<Record<string, u
   return conditions;
 }
 
+/** Shared match query for list, count, and export — keeps filters consistent. */
+export async function buildRespondentMatchQuery(
+  filter: RespondentProfileListFilter
+): Promise<Record<string, unknown>> {
+  const q: Record<string, unknown> = {};
+
+  const vendorId = filter.vendorId?.trim();
+  if (vendorId && MongooseTypes.ObjectId.isValid(vendorId)) {
+    q.vendorId = new MongooseTypes.ObjectId(vendorId);
+  }
+
+  const panelSurveyId = filter.panelSurveyId?.trim();
+  if (panelSurveyId && MongooseTypes.ObjectId.isValid(panelSurveyId)) {
+    q.panelSurveyId = new MongooseTypes.ObjectId(panelSurveyId);
+  }
+
+  const allocationId = filter.allocationId?.trim();
+  if (allocationId && MongooseTypes.ObjectId.isValid(allocationId)) {
+    q.allocationId = new MongooseTypes.ObjectId(allocationId);
+  }
+
+  const surveyStatus = String(filter.surveyStatus ?? "").trim();
+  if (surveyStatus) {
+    q.surveyStatus = surveyStatus;
+  }
+
+  const ownerType = filter.respondentOwnerType?.trim();
+  if (ownerType === "internal" || ownerType === "vendor") {
+    q.respondentOwnerType = ownerType;
+  }
+
+  if (filter.search?.trim()) {
+    q.$or = await buildRespondentSearchOr(filter.search);
+  }
+
+  const dateFrom = filter.dateFrom?.trim();
+  const dateTo = filter.dateTo?.trim();
+  if (dateFrom || dateTo) {
+    const createdAt: Record<string, Date> = {};
+    if (dateFrom) {
+      const start = new Date(dateFrom);
+      if (!Number.isNaN(start.getTime())) {
+        start.setHours(0, 0, 0, 0);
+        createdAt.$gte = start;
+      }
+    }
+    if (dateTo) {
+      const end = new Date(dateTo);
+      if (!Number.isNaN(end.getTime())) {
+        end.setHours(23, 59, 59, 999);
+        createdAt.$lte = end;
+      }
+    }
+    if (Object.keys(createdAt).length > 0) {
+      q.createdAt = createdAt;
+    }
+  }
+
+  return q;
+}
+
 export const surveyRespondentProfileRepository = {
   findById(id: string) {
-    if (!Types.ObjectId.isValid(id)) return null;
+    if (!MongooseTypes.ObjectId.isValid(id)) return null;
     return SurveyRespondentProfile.findById(id)
       .populate("vendorId", "vendorCode companyName")
       .populate("panelSurveyId", "surveyName surveyCode supplierProjectPid")
@@ -65,7 +127,7 @@ export const surveyRespondentProfileRepository = {
 
   /** Unpopulated document — use before writes / ObjectId extraction */
   findByIdPlain(id: string) {
-    if (!Types.ObjectId.isValid(id)) return null;
+    if (!MongooseTypes.ObjectId.isValid(id)) return null;
     return SurveyRespondentProfile.findById(id).lean();
   },
 
@@ -120,33 +182,7 @@ export const surveyRespondentProfileRepository = {
     const page = Math.max(1, filter.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 20));
     const skip = (page - 1) * pageSize;
-
-    const q: Record<string, unknown> = {};
-    if (filter.vendorId && Types.ObjectId.isValid(filter.vendorId)) {
-      q.vendorId = new Types.ObjectId(filter.vendorId);
-    }
-    if (filter.panelSurveyId && Types.ObjectId.isValid(filter.panelSurveyId)) {
-      q.panelSurveyId = new Types.ObjectId(filter.panelSurveyId);
-    }
-    if (filter.allocationId && Types.ObjectId.isValid(filter.allocationId)) {
-      q.allocationId = new Types.ObjectId(filter.allocationId);
-    }
-    if (filter.surveyStatus) q.surveyStatus = filter.surveyStatus;
-    if (filter.respondentOwnerType) q.respondentOwnerType = filter.respondentOwnerType;
-    if (filter.search?.trim()) {
-      q.$or = await buildRespondentSearchOr(filter.search);
-    }
-    if (filter.dateFrom || filter.dateTo) {
-      q.createdAt = {};
-      if (filter.dateFrom) {
-        (q.createdAt as Record<string, Date>).$gte = new Date(filter.dateFrom);
-      }
-      if (filter.dateTo) {
-        const end = new Date(filter.dateTo);
-        end.setHours(23, 59, 59, 999);
-        (q.createdAt as Record<string, Date>).$lte = end;
-      }
-    }
+    const q = await buildRespondentMatchQuery(filter);
 
     const [items, total] = await Promise.all([
       SurveyRespondentProfile.find(q)
@@ -163,31 +199,13 @@ export const surveyRespondentProfileRepository = {
     return { items, meta: pageMeta(total, page, pageSize) };
   },
 
-  cursorForExport(filter: RespondentProfileListFilter, batchSize = 500) {
-    const q: Record<string, unknown> = {};
-    if (filter.vendorId && Types.ObjectId.isValid(filter.vendorId)) {
-      q.vendorId = new Types.ObjectId(filter.vendorId);
-    }
-    if (filter.panelSurveyId && Types.ObjectId.isValid(filter.panelSurveyId)) {
-      q.panelSurveyId = new Types.ObjectId(filter.panelSurveyId);
-    }
-    if (filter.allocationId && Types.ObjectId.isValid(filter.allocationId)) {
-      q.allocationId = new Types.ObjectId(filter.allocationId);
-    }
-    if (filter.surveyStatus) q.surveyStatus = filter.surveyStatus;
-    if (filter.respondentOwnerType) q.respondentOwnerType = filter.respondentOwnerType;
-    if (filter.dateFrom || filter.dateTo) {
-      q.createdAt = {};
-      if (filter.dateFrom) {
-        (q.createdAt as Record<string, Date>).$gte = new Date(filter.dateFrom);
-      }
-      if (filter.dateTo) {
-        const end = new Date(filter.dateTo);
-        end.setHours(23, 59, 59, 999);
-        (q.createdAt as Record<string, Date>).$lte = end;
-      }
-    }
+  async countForExport(filter: RespondentProfileListFilter): Promise<number> {
+    const q = await buildRespondentMatchQuery(filter);
+    return SurveyRespondentProfile.countDocuments(q);
+  },
 
+  async cursorForExport(filter: RespondentProfileListFilter, batchSize = 500) {
+    const q = await buildRespondentMatchQuery(filter);
     return SurveyRespondentProfile.find(q)
       .sort({ createdAt: -1 })
       .populate("vendorId", "vendorCode companyName")

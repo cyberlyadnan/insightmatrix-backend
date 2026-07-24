@@ -1,39 +1,88 @@
+import ExcelJS from "exceljs";
+import PDFDocument from "pdfkit";
+import dayjs from "dayjs";
 import type { RespondentProfileListFilter } from "../../repositories/survey-respondent-profile.repository";
 import { surveyRespondentProfileRepository } from "../../repositories/survey-respondent-profile.repository";
-import PDFDocument from "pdfkit";
 
-function escapeCsvCell(value: unknown): string {
-  const s = value === null || value === undefined ? "" : String(value);
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
+/** Exact export column headers — shared by CSV, Excel, and PDF. */
+export const EXPORT_HEADERS = [
+  "Owner Type",
+  "Vendor Name",
+  "Survey Name",
+  "Survey Code",
+  "Tracking ID",
+  "Internal Token",
+  "Survey Status",
+  "Started At",
+  "Completed At"
+] as const;
 
-function flattenAnswers(answers: unknown): string {
-  if (!answers || typeof answers !== "object") return "";
-  return Object.entries(answers as Record<string, unknown>)
-    .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join("|") : String(v)}`)
-    .join("; ");
-}
-
-const CSV_HEADERS = [
-  "id",
-  "owner_type",
-  "vendor_name",
-  "vendor_code",
-  "survey_name",
-  "survey_code",
-  "allocation_code",
-  "tracking_id",
-  "internal_token",
-  "survey_status",
-  "prescreen_completed_at",
-  "started_at",
-  "completed_at",
-  "prescreen_answers",
-  "created_at"
+export type ExportRow = [
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string
 ];
 
-function rowFromDoc(doc: Record<string, unknown>): string[] {
+export type ExportMeta = {
+  surveyLabel: string;
+  vendorLabel: string;
+  statusLabel: string;
+  exportDate: string;
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  complete: "Complete",
+  terminate: "Terminate",
+  quota_full: "Quota Full",
+  quality_reject: "Security Fail",
+  over_quota: "Over Quota",
+  prescreen_pending: "Prescreen Pending",
+  started: "Started",
+  redirected: "Redirected"
+};
+
+const OWNER_LABELS: Record<string, string> = {
+  internal: "Internal",
+  vendor: "Vendor"
+};
+
+function cellOrDash(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+  const s = String(value).trim();
+  return s.length ? s : "-";
+}
+
+function formatExportDate(value: unknown): string {
+  if (!value) return "-";
+  const d = dayjs(value as string | Date | number);
+  if (!d.isValid()) return "-";
+  return d.format("DD MMM YYYY, hh:mm A");
+}
+
+export function formatSurveyStatusLabel(status: unknown): string {
+  const key = String(status ?? "").trim();
+  if (!key) return "-";
+  return STATUS_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function formatOwnerTypeLabel(owner: unknown): string {
+  const key = String(owner ?? "").trim();
+  if (!key) return "-";
+  return OWNER_LABELS[key] ?? key.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function escapeCsvCell(value: string): string {
+  if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+  return value;
+}
+
+export function rowFromDoc(doc: Record<string, unknown>): ExportRow {
   const vendor =
     typeof doc.vendorId === "object" && doc.vendorId !== null
       ? (doc.vendorId as Record<string, unknown>)
@@ -42,73 +91,103 @@ function rowFromDoc(doc: Record<string, unknown>): string[] {
     typeof doc.panelSurveyId === "object" && doc.panelSurveyId !== null
       ? (doc.panelSurveyId as Record<string, unknown>)
       : null;
-  const allocation =
-    typeof doc.allocationId === "object" && doc.allocationId !== null
-      ? (doc.allocationId as Record<string, unknown>)
-      : null;
 
   return [
-    String(doc._id),
-    String(doc.respondentOwnerType ?? ""),
-    vendor ? String(vendor.companyName ?? "") : "",
-    vendor ? String(vendor.vendorCode ?? "") : "",
-    survey ? String(survey.surveyName ?? "") : "",
-    survey ? String(survey.surveyCode ?? "") : "",
-    allocation ? String(allocation.allocationCode ?? "") : "",
-    String(doc.vendorRespondentToid ?? ""),
-    String(doc.internalSessionToken ?? ""),
-    String(doc.surveyStatus ?? ""),
-    doc.prescreenCompletedAt ? new Date(String(doc.prescreenCompletedAt)).toISOString() : "",
-    doc.createdAt ? new Date(String(doc.createdAt)).toISOString() : "",
-    doc.completedAt ? new Date(String(doc.completedAt)).toISOString() : "",
-    flattenAnswers(doc.prescreenAnswers),
-    doc.createdAt ? new Date(String(doc.createdAt)).toISOString() : ""
+    formatOwnerTypeLabel(doc.respondentOwnerType),
+    cellOrDash(vendor?.companyName),
+    cellOrDash(survey?.surveyName),
+    cellOrDash(survey?.surveyCode),
+    cellOrDash(doc.vendorRespondentToid),
+    cellOrDash(doc.internalSessionToken),
+    formatSurveyStatusLabel(doc.surveyStatus),
+    formatExportDate(doc.createdAt),
+    formatExportDate(doc.completedAt)
   ];
 }
 
-/** Streams CSV in batches — avoids loading full dataset into memory */
-export async function* streamRespondentCsvRows(filter: RespondentProfileListFilter) {
-  yield CSV_HEADERS.map(escapeCsvCell).join(",") + "\n";
+export function buildExportMeta(filter: RespondentProfileListFilter): ExportMeta {
+  return {
+    surveyLabel: filter.panelSurveyId?.trim() ? filter.panelSurveyId.trim() : "All surveys",
+    vendorLabel: filter.vendorId?.trim() ? filter.vendorId.trim() : "All vendors",
+    statusLabel: filter.surveyStatus?.trim()
+      ? formatSurveyStatusLabel(filter.surveyStatus)
+      : "All",
+    exportDate: dayjs().format("DD MMM YYYY, hh:mm A")
+  };
+}
 
-  const cursor = surveyRespondentProfileRepository.cursorForExport(filter);
+export async function resolveExportMeta(
+  filter: RespondentProfileListFilter,
+  labels?: { surveyName?: string; vendorName?: string }
+): Promise<ExportMeta> {
+  const base = buildExportMeta(filter);
+  return {
+    ...base,
+    surveyLabel: labels?.surveyName?.trim() || base.surveyLabel,
+    vendorLabel: labels?.vendorName?.trim() || base.vendorLabel
+  };
+}
+
+async function collectExportRows(
+  filter: RespondentProfileListFilter,
+  maxRows = 10_000
+): Promise<ExportRow[]> {
+  const rows: ExportRow[] = [];
+  const cursor = await surveyRespondentProfileRepository.cursorForExport(filter);
+  for await (const doc of cursor) {
+    rows.push(rowFromDoc(doc as unknown as Record<string, unknown>));
+    if (rows.length >= maxRows) break;
+  }
+  return rows;
+}
+
+/** Streams CSV in batches — UTF-8 with BOM for Excel compatibility. */
+export async function* streamRespondentCsvRows(filter: RespondentProfileListFilter) {
+  // UTF-8 BOM so Excel opens special characters correctly
+  yield "\uFEFF";
+  yield EXPORT_HEADERS.map((h) => escapeCsvCell(h)).join(",") + "\r\n";
+
+  const cursor = await surveyRespondentProfileRepository.cursorForExport(filter);
   for await (const doc of cursor) {
     const cells = rowFromDoc(doc as unknown as Record<string, unknown>);
-    yield cells.map(escapeCsvCell).join(",") + "\n";
+    yield cells.map(escapeCsvCell).join(",") + "\r\n";
   }
 }
 
-/**
- * XLSX via minimal XML spreadsheet (no heavy dependency).
- * For large exports prefer CSV; XLSX capped at 10k rows.
- */
+/** Proper .xlsx workbook via ExcelJS. */
 export async function buildRespondentXlsxBuffer(
   filter: RespondentProfileListFilter,
   maxRows = 10_000
 ): Promise<Buffer> {
-  const rows: string[][] = [CSV_HEADERS];
-  const cursor = surveyRespondentProfileRepository.cursorForExport(filter);
-  let count = 0;
-  for await (const doc of cursor) {
-    rows.push(rowFromDoc(doc as unknown as Record<string, unknown>));
-    count++;
-    if (count >= maxRows) break;
+  const rows = await collectExportRows(filter, maxRows);
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "InsightMatrix CRM";
+  workbook.created = new Date();
+
+  const sheet = workbook.addWorksheet("Survey Export", {
+    views: [{ state: "frozen", ySplit: 1 }]
+  });
+
+  sheet.addRow([...EXPORT_HEADERS]);
+  const header = sheet.getRow(1);
+  header.font = { bold: true };
+  header.alignment = { vertical: "middle" };
+
+  for (const row of rows) {
+    sheet.addRow([...row]);
   }
 
-  const sheetRows = rows
-    .map(
-      (r) =>
-        `<row>${r.map((c) => `<c><![CDATA[${String(c).replace(/]]>/g, "]]]]><![CDATA[>")}]]></c>`).join("")}</row>`
-    )
-    .join("");
+  sheet.columns.forEach((col) => {
+    let max = 12;
+    col.eachCell?.({ includeEmpty: true }, (cell) => {
+      const len = String(cell.value ?? "").length;
+      if (len > max) max = Math.min(len + 2, 48);
+    });
+    col.width = max;
+  });
 
-  const xml = `<?xml version="1.0"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet">
-<Worksheet ss:Name="Respondents" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-<Table>${sheetRows}</Table>
-</Worksheet>
-</Workbook>`;
-
-  return Buffer.from(xml, "utf-8");
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
 }
 
 function truncateCell(value: string, maxLen: number): string {
@@ -116,82 +195,179 @@ function truncateCell(value: string, maxLen: number): string {
   return `${value.slice(0, Math.max(0, maxLen - 1))}…`;
 }
 
-/** PDF table export — landscape A4, capped at 10k rows like XLSX. */
+export type PdfExportOptions = {
+  meta?: ExportMeta;
+  maxRows?: number;
+};
+
+/** Absolute text that never auto-paginates (avoids blank trailing pages). */
+function drawFixedText(
+  doc: PDFKit.PDFDocument,
+  text: string,
+  x: number,
+  y: number,
+  opts: { width?: number; align?: "left" | "center" | "right" } = {}
+) {
+  doc.text(text, x, y, {
+    width: opts.width,
+    align: opts.align,
+    lineBreak: false,
+    continued: false
+  });
+}
+
+/** Landscape PDF with filters in header, bordered table, page numbers. */
 export async function buildRespondentPdfBuffer(
   filter: RespondentProfileListFilter,
-  maxRows = 10_000
+  options: PdfExportOptions = {}
 ): Promise<Buffer> {
-  const rows: string[][] = [];
-  const cursor = surveyRespondentProfileRepository.cursorForExport(filter);
-  for await (const doc of cursor) {
-    rows.push(rowFromDoc(doc as unknown as Record<string, unknown>));
-    if (rows.length >= maxRows) break;
-  }
+  const maxRows = options.maxRows ?? 10_000;
+  const meta = options.meta ?? buildExportMeta(filter);
+  const rows = await collectExportRows(filter, maxRows);
 
   return new Promise((resolve, reject) => {
+    const margin = 36;
+    const footerHeight = 20;
     const doc = new PDFDocument({
       size: "A4",
       layout: "landscape",
-      margin: 28,
-      info: { Title: "Respondent export" }
+      margin,
+      autoFirstPage: true,
+      bufferPages: true,
+      info: {
+        Title: "Survey Export Report",
+        Author: "InsightMatrix CRM"
+      }
     });
     const chunks: Buffer[] = [];
     doc.on("data", (c: Buffer) => chunks.push(c));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    const left = 28;
-    const top = 28;
-    const pageWidth = 841.89;
-    const pageHeight = 595.28;
-    const bottom = pageHeight - 28;
-    const colCount = CSV_HEADERS.length;
-    const tableWidth = pageWidth - left * 2;
-    const colWidth = tableWidth / colCount;
-    const rowHeight = 14;
-    const fontSize = 5.5;
+    const left = margin;
+    const top = margin;
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    // Keep table above the footer band so page numbers never trigger auto page-breaks
+    const bottom = pageHeight - margin - footerHeight;
+    const tableWidth = pageWidth - margin * 2;
+    const colWeights = [0.08, 0.12, 0.14, 0.1, 0.12, 0.14, 0.1, 0.1, 0.1];
+    const colWidths = colWeights.map((w) => tableWidth * w);
+    const rowHeight = 18;
+    const fontSize = 7;
 
     let y = top;
-    doc.fontSize(12).font("Helvetica-Bold").text("Respondent export", left, y);
-    y += 18;
-    doc.fontSize(8).font("Helvetica").text(`Generated ${new Date().toISOString()}`, left, y);
-    y += 16;
-    doc.fontSize(fontSize);
+    let isFirstPage = true;
 
-    const drawHeaderRow = () => {
-      doc.font("Helvetica-Bold");
-      CSV_HEADERS.forEach((header, i) => {
-        doc.text(truncateCell(header, 18), left + i * colWidth + 2, y, {
-          width: colWidth - 4,
-          lineBreak: false
+    const drawFixedCell = (text: string, x: number, cellY: number, width: number) => {
+      drawFixedText(doc, truncateCell(text, 36), x + 3, cellY + 5, { width: width - 6 });
+    };
+
+    const drawPageHeader = () => {
+      // Compact header on continuation pages; full meta only on page 1
+      if (isFirstPage) {
+        doc.fillColor("#111111").font("Helvetica-Bold").fontSize(14);
+        drawFixedText(doc, "InsightMatrix CRM", left, y, { width: tableWidth });
+        y += 18;
+        doc.fontSize(11);
+        drawFixedText(doc, "Survey Export Report", left, y, { width: tableWidth });
+        y += 18;
+        doc.font("Helvetica").fontSize(8).fillColor("#444444");
+        drawFixedText(doc, `Export Date: ${meta.exportDate}`, left, y, { width: tableWidth });
+        y += 12;
+        drawFixedText(doc, `Selected Survey: ${meta.surveyLabel}`, left, y, { width: tableWidth });
+        y += 12;
+        drawFixedText(doc, `Selected Vendor: ${meta.vendorLabel}`, left, y, { width: tableWidth });
+        y += 12;
+        drawFixedText(doc, `Selected Status: ${meta.statusLabel}`, left, y, { width: tableWidth });
+        y += 14;
+        doc.fillColor("#111111");
+      } else {
+        doc.fillColor("#111111").font("Helvetica-Bold").fontSize(9);
+        drawFixedText(doc, "InsightMatrix CRM — Survey Export Report (continued)", left, y, {
+          width: tableWidth
         });
+        y += 16;
+      }
+    };
+
+    const drawTableHeader = () => {
+      doc.save();
+      doc.rect(left, y, tableWidth, rowHeight).fill("#F3F4F6");
+      doc.restore();
+      doc.font("Helvetica-Bold").fontSize(fontSize).fillColor("#111111");
+      let x = left;
+      EXPORT_HEADERS.forEach((header, i) => {
+        doc.rect(x, y, colWidths[i], rowHeight).stroke("#D1D5DB");
+        drawFixedCell(header, x, y, colWidths[i]);
+        x += colWidths[i];
       });
       doc.font("Helvetica");
       y += rowHeight;
     };
 
-    drawHeaderRow();
+    const startNewPage = () => {
+      doc.addPage({ size: "A4", layout: "landscape", margin });
+      isFirstPage = false;
+      y = top;
+      drawPageHeader();
+      drawTableHeader();
+    };
 
-    for (const row of rows) {
-      if (y + rowHeight > bottom) {
-        doc.addPage({ size: "A4", layout: "landscape", margin: 28 });
-        y = top;
-        drawHeaderRow();
+    const ensureSpace = (needed: number) => {
+      if (y + needed > bottom) {
+        startNewPage();
       }
+    };
+
+    drawPageHeader();
+    drawTableHeader();
+
+    rows.forEach((row, rowIndex) => {
+      ensureSpace(rowHeight);
+      if (rowIndex % 2 === 1) {
+        doc.save();
+        doc.rect(left, y, tableWidth, rowHeight).fill("#FAFAFA");
+        doc.restore();
+      }
+      let x = left;
+      doc.fontSize(fontSize).fillColor("#111111");
       row.forEach((cell, i) => {
-        doc.text(truncateCell(String(cell), 28), left + i * colWidth + 2, y, {
-          width: colWidth - 4,
-          lineBreak: false
-        });
+        doc.rect(x, y, colWidths[i], rowHeight).stroke("#E5E7EB");
+        drawFixedCell(cell, x, y, colWidths[i]);
+        x += colWidths[i];
       });
       y += rowHeight;
-    }
+    });
 
     if (rows.length >= maxRows) {
-      y += 8;
-      doc.fontSize(7).fillColor("#666666").text(`Export capped at ${maxRows.toLocaleString()} rows.`, left, y);
+      ensureSpace(16);
+      doc.fontSize(7).fillColor("#666666");
+      drawFixedText(
+        doc,
+        `Export capped at ${maxRows.toLocaleString()} rows.`,
+        left,
+        y + 4,
+        { width: tableWidth }
+      );
+    }
+
+    // Stamp page numbers inside the safe footer band (never below margin)
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(range.start + i);
+      const footerY = doc.page.height - margin - 8;
+      doc.font("Helvetica").fontSize(8).fillColor("#6B7280");
+      drawFixedText(doc, `Page ${i + 1} of ${range.count}`, left, footerY, {
+        width: tableWidth,
+        align: "center"
+      });
     }
 
     doc.end();
   });
+}
+
+export async function countExportRows(filter: RespondentProfileListFilter): Promise<number> {
+  return surveyRespondentProfileRepository.countForExport(filter);
 }
