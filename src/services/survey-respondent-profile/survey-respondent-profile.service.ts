@@ -206,12 +206,16 @@ export const surveyRespondentProfileService = {
     const conversionDenom = completes + terminates + quotaFull + qualityRejects;
     const conversionRate = conversionDenom > 0 ? completes / conversionDenom : 0;
 
+    const fraudRate = total > 0 ? Math.round((qualityRejects / total) * 1000) / 10 : 0;
+
     return {
       total,
       completes,
       terminates,
       quotaFull,
       qualityRejects,
+      /** Quality rejects as % of total respondents (fraud / quality signal). */
+      fraudRate,
       redirected,
       prescreenPending: byStatus.prescreen_pending ?? 0,
       conversionRate: Math.round(conversionRate * 10000) / 100,

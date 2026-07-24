@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendResponse } from '../utils/ApiResponse';
 import { executePanelSurveySeed } from '../seeds/panel-surveys.seed';
@@ -6,12 +7,53 @@ import {
   fetchPanelSurveyAnalyticsReport,
   recordRoutingEvent
 } from '../services/panel-survey-analytics.service';
+import { VendorSurveyAllocation } from '../models/VendorSurveyAllocation';
 import { toPanelSurveyDto, toPanelSurveyPublicDto } from '../utils/panel-survey.dto';
 
 export const listPanelSurveys = asyncHandler(async (req, res) => {
   const result = await panelSurveyService.list(req.validatedQuery ?? req.query);
+  const items = result.items.map((item) =>
+    toPanelSurveyDto(item.toObject ? item.toObject() : item)
+  );
+
+  const objectIds = result.items
+    .map((item) => item._id)
+    .filter(Boolean)
+    .map((id) => (id instanceof Types.ObjectId ? id : new Types.ObjectId(String(id))));
+
+  const stats =
+    objectIds.length === 0
+      ? []
+      : await VendorSurveyAllocation.aggregate([
+          { $match: { panelSurveyId: { $in: objectIds } } },
+          {
+            $group: {
+              _id: "$panelSurveyId",
+              vendorCount: { $sum: 1 },
+              liveCompletes: { $sum: "$completedCount" }
+            }
+          }
+        ]);
+
+  const bySurvey = new Map(
+    stats.map((row) => [
+      String(row._id),
+      {
+        vendorCount: Number(row.vendorCount ?? 0),
+        liveCompletes: Number(row.liveCompletes ?? 0)
+      }
+    ])
+  );
+
   sendResponse(res, {
-    data: result.items.map((item) => toPanelSurveyDto(item.toObject ? item.toObject() : item)),
+    data: items.map((dto) => {
+      const s = bySurvey.get(dto.id);
+      return {
+        ...dto,
+        vendorCount: s?.vendorCount ?? 0,
+        liveCompletes: s?.liveCompletes ?? 0
+      };
+    }),
     meta: result.meta
   });
 });
