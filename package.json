@@ -16,6 +16,7 @@
     "seed:survey-providers": "tsx scripts/seed-survey-providers.ts",
     "seed:panel-surveys": "tsx scripts/seed-panel-surveys.ts",
     "seed:vendor": "tsx scripts/seed-vendor.ts",
+    "seed:services": "tsx scripts/seed-services-and-settings.ts",
     "export:survey-links": "tsx scripts/export-survey-links.ts"
   },
   "keywords": [

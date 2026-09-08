@@ -19,6 +19,8 @@ import routingLogsRoutes from './routing-logs.routes';
 import vendorRespondentTrackingRoutes from './vendor-respondent-tracking.routes';
 import surveyRespondentProfileRoutes from './survey-respondent-profile.routes';
 import securityLogsRoutes from './security-logs.routes';
+import serviceRoutes from './service.routes';
+import siteSettingsRoutes from './site-settings.routes';
 
 const router = Router();
 
@@ -42,6 +44,8 @@ router.use("/routing-logs", routingLogsRoutes);
 router.use("/vendor-respondent-sessions", vendorRespondentTrackingRoutes);
 router.use("/survey-respondent-profiles", surveyRespondentProfileRoutes);
 router.use("/security-logs", securityLogsRoutes);
+router.use("/services", serviceRoutes);
+router.use("/settings", siteSettingsRoutes);
 
 export default router;
 
