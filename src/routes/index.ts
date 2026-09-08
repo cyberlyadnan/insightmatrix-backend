@@ -21,6 +21,7 @@ import surveyRespondentProfileRoutes from './survey-respondent-profile.routes';
 import securityLogsRoutes from './security-logs.routes';
 import serviceRoutes from './service.routes';
 import siteSettingsRoutes from './site-settings.routes';
+import emailRoutes from './email.routes';
 
 const router = Router();
 
@@ -46,6 +47,7 @@ router.use("/survey-respondent-profiles", surveyRespondentProfileRoutes);
 router.use("/security-logs", securityLogsRoutes);
 router.use("/services", serviceRoutes);
 router.use("/settings", siteSettingsRoutes);
+router.use("/email", emailRoutes);
 
 export default router;
 

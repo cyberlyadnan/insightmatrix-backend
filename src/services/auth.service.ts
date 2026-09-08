@@ -9,7 +9,9 @@ import { userRepository } from '../repositories/user.repository';
 import { RefreshToken } from '../models/RefreshToken';
 import { PasswordResetToken } from '../models/PasswordResetToken';
 import { EmailVerificationToken } from '../models/EmailVerificationToken';
+import { logger } from '../config/logger';
 import { sendEmail } from './email.service';
+import { emailVerificationEmail, passwordResetEmail } from '../templates/email.templates';
 import { toPublicUser } from '../utils/user.dto';
 import { ROLES } from '../constants/roles';
 
@@ -58,12 +60,25 @@ export const authService = {
     });
 
     const verifyUrl = `${env.API_PUBLIC_URL}${env.API_PREFIX}/auth/verify-email?token=${encodeURIComponent(rawToken)}`;
+    const verifyMail = emailVerificationEmail({
+      fullName: payload.fullName,
+      verifyUrl,
+      expiresHours: verificationExpiryHours,
+      websiteUrl: env.CLIENT_URL?.startsWith("https://") ? env.CLIENT_URL : undefined
+    });
 
     await sendEmail({
       to: user.email,
-      subject: "Verify your InsightMatrix account",
-      html: `<p>Welcome ${payload.fullName}!</p><p><a href="${verifyUrl}">Click here to verify your email</a></p><p>This link expires in ${verificationExpiryHours} hours.</p>`
-    }).catch(() => {});
+      subject: "Confirm your InsightMatrix email address",
+      html: verifyMail.html,
+      text: verifyMail.text,
+      category: "email-verification"
+    }).catch((err) => {
+      logger.error("Failed to send verification email after register", {
+        message: err instanceof Error ? err.message : String(err),
+        email: user.email
+      });
+    });
 
     return { user: toPublicUser(user), accessToken: null as null, refreshToken: null as null };
   },
@@ -92,12 +107,25 @@ export const authService = {
     });
 
     const verifyUrl = `${env.API_PUBLIC_URL}${env.API_PREFIX}/auth/verify-email?token=${encodeURIComponent(rawToken)}`;
+    const verifyMail = emailVerificationEmail({
+      fullName: user.fullName,
+      verifyUrl,
+      expiresHours: verificationExpiryHours,
+      websiteUrl: env.CLIENT_URL?.startsWith("https://") ? env.CLIENT_URL : undefined
+    });
 
     await sendEmail({
       to: user.email,
-      subject: "Verify your InsightMatrix account",
-      html: `<p><a href="${verifyUrl}">Verify your email</a></p>`
-    }).catch(() => {});
+      subject: "Confirm your InsightMatrix email address",
+      html: verifyMail.html,
+      text: verifyMail.text,
+      category: "email-verification"
+    }).catch((err) => {
+      logger.error("Failed to send verification email", {
+        message: err instanceof Error ? err.message : String(err),
+        email: user.email
+      });
+    });
   },
 
   login: async ({ email, password }: { email: string; password: string }) => {
@@ -187,12 +215,25 @@ export const authService = {
     });
 
     const resetUrl = `${env.CLIENT_URL}/reset-password?token=${encodeURIComponent(rawToken)}`;
+    const resetMail = passwordResetEmail({
+      fullName: user.fullName,
+      resetUrl,
+      expiresMinutes: env.JWT_RESET_PASSWORD_EXPIRES_MIN,
+      websiteUrl: env.CLIENT_URL?.startsWith("https://") ? env.CLIENT_URL : undefined
+    });
 
     await sendEmail({
       to: user.email,
       subject: "Reset your InsightMatrix password",
-      html: `<p>Reset your password using this link (expires in ${env.JWT_RESET_PASSWORD_EXPIRES_MIN} minutes):</p><p><a href="${resetUrl}">${resetUrl}</a></p>`
-    }).catch(() => {});
+      html: resetMail.html,
+      text: resetMail.text,
+      category: "password-reset"
+    }).catch((err) => {
+      logger.error("Failed to send password reset email", {
+        message: err instanceof Error ? err.message : String(err),
+        email: user.email
+      });
+    });
   },
 
   resetPassword: async ({ token, password }: { token: string; password: string }) => {

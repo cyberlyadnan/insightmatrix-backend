@@ -34,8 +34,10 @@ const schema = Joi.object({
   SMTP_HOST: Joi.string().allow(""),
   SMTP_PORT: Joi.number().default(587),
   SMTP_USER: Joi.string().allow(""),
+  /** Gmail App Password recommended; spaces are stripped at send time */
   SMTP_PASS: Joi.string().allow(""),
   SMTP_FROM: Joi.string().allow(""),
+  SMTP_REPLY_TO: Joi.string().allow(""),
   RATE_LIMIT_WINDOW_MS: Joi.number().default(15 * 60 * 1000),
   RATE_LIMIT_MAX: Joi.number().default(300),
   /** Shown on PDF invoices (optional) */
