@@ -1,4 +1,8 @@
-import type { PanelQuotaGroupStatus, PanelSurveyStatus } from '../constants/panel-survey';
+import type {
+  PanelQuotaGroupStatus,
+  PanelSurveyAudience,
+  PanelSurveyStatus
+} from '../constants/panel-survey';
 import {
   buildPanelSurveyShareLink,
   buildPanelSurveyShareLinkExample
@@ -27,6 +31,7 @@ export type PanelSurveyDto = {
   providerId: string;
   provider: PanelSurveyProviderSummary | null;
   surveyStatus: PanelSurveyStatus;
+  surveyAudience: PanelSurveyAudience;
   externalSurveyUrl: string;
   supplierProjectPid: string;
   trackingParameterName: string;
@@ -128,6 +133,7 @@ export function toPanelSurveyDto(doc: {
   externalSurveyId?: string;
   providerId: unknown;
   surveyStatus: PanelSurveyStatus;
+  surveyAudience?: PanelSurveyAudience;
   externalSurveyUrl: string;
   supplierProjectPid?: string;
   trackingParameterName?: string;
@@ -175,6 +181,7 @@ export function toPanelSurveyDto(doc: {
     providerId: providerObjectId,
     provider: providerSummary,
     surveyStatus: doc.surveyStatus,
+    surveyAudience: (doc.surveyAudience as PanelSurveyAudience) ?? "public",
     externalSurveyUrl: doc.externalSurveyUrl,
     supplierProjectPid: doc.supplierProjectPid ?? "",
     trackingParameterName: doc.trackingParameterName ?? "toid",

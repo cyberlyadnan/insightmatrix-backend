@@ -59,6 +59,7 @@ export async function listMatchedPanelSurveysForUser(
   const now = new Date();
   const surveys = await PanelSurvey.find({
     surveyStatus: "active",
+    surveyAudience: { $in: ["public", null] },
     remainingQuota: { $gt: 0 },
     $and: [
       { $or: [{ startDate: null }, { startDate: { $exists: false } }, { startDate: { $lte: now } }] },
@@ -142,6 +143,10 @@ export async function startPanelSurveyAttempt(userId: string, surveyId: string, 
     .populate("providerId", "companyName companyCode")
     .lean();
   if (!survey) throw new ApiError(404, "Survey not available");
+
+  if (survey.surveyAudience && survey.surveyAudience !== "public") {
+    throw new ApiError(403, "This survey is private/internal and cannot be started from the user panel.");
+  }
 
   if (!surveyMatchesMemberProfile(survey, profile)) {
     throw new ApiError(403, "You are not eligible for this survey based on your profile.");

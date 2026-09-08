@@ -4,7 +4,7 @@ import { logger } from '../config/logger';
 import { SurveyCompany } from '../models/SurveyCompany';
 import { PanelSurvey } from '../models/PanelSurvey';
 import { panelSurveyRepository, type PanelSurveyFilter } from '../repositories/panel-survey.repository';
-import type { PanelSurveyStatus } from '../constants/panel-survey';
+import type { PanelSurveyAudience, PanelSurveyStatus } from '../constants/panel-survey';
 import {
   extractSupplierProjectPidFromUrl,
   inferTrackingParameterFromUrl,
@@ -32,6 +32,7 @@ type ListParams = {
   providerId?: string;
   country?: string;
   surveyStatus?: PanelSurveyStatus;
+  surveyAudience?: PanelSurveyAudience;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
 };
@@ -168,6 +169,10 @@ export const panelSurveyService = {
 
     if (params.surveyStatus) {
       filter.surveyStatus = params.surveyStatus;
+    }
+
+    if (params.surveyAudience) {
+      filter.surveyAudience = params.surveyAudience;
     }
 
     if (params.country?.trim()) {

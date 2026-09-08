@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import {
   PANEL_QUOTA_GROUP_STATUSES,
+  PANEL_SURVEY_AUDIENCES,
   PANEL_SURVEY_DEVICE_TYPES,
   PANEL_SURVEY_GENDER_TARGETS,
   PANEL_SURVEY_STATUSES
@@ -46,6 +47,12 @@ const panelSurveySchema = new mongoose.Schema(
       type: String,
       enum: PANEL_SURVEY_STATUSES,
       default: "draft",
+      index: true
+    },
+    surveyAudience: {
+      type: String,
+      enum: PANEL_SURVEY_AUDIENCES,
+      default: "public",
       index: true
     },
 

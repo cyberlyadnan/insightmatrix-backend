@@ -61,7 +61,7 @@ export const vendorAuthService = {
     }
 
     const stored = await VendorRefreshToken.findOne({ token: refreshToken });
-    if (!stored) throw new ApiError(401, "Refresh token revoked");
+    if (!stored) throw new ApiError(401, "Invalid refresh token");
 
     const vendor = await vendorRepository.findById(decoded.sub);
     if (!vendor) throw new ApiError(401, "Vendor not found");
@@ -69,13 +69,57 @@ export const vendorAuthService = {
       throw new ApiError(403, "Vendor account is not active");
     }
 
-    await VendorRefreshToken.deleteOne({ _id: stored._id });
-    return issueVendorTokens(vendor);
+    if (stored.revoked) {
+      const revokedAt = stored.revokedAt ? new Date(stored.revokedAt).getTime() : 0;
+      const withinGracePeriod = Date.now() - revokedAt <= 30_000;
+
+      if (withinGracePeriod && stored.replacedByToken) {
+        const replacement = await VendorRefreshToken.findOne({
+          token: stored.replacedByToken,
+          revoked: false
+        });
+        if (replacement && new Date(replacement.expiresAt).getTime() > Date.now()) {
+          const payload = { sub: vendor._id.toString(), email: vendor.email };
+          const accessToken = signVendorAccessToken(payload);
+          return { accessToken, refreshToken: replacement.token };
+        }
+      }
+
+      await VendorRefreshToken.updateMany(
+        { vendorId: vendor._id, revoked: false },
+        { revoked: true, revokedAt: new Date() }
+      );
+      throw new ApiError(401, "Invalid or revoked refresh token");
+    }
+
+    if (new Date(stored.expiresAt).getTime() < Date.now()) {
+      throw new ApiError(401, "Refresh token expired");
+    }
+
+    const payload = { sub: vendor._id.toString(), email: vendor.email };
+    const accessToken = signVendorAccessToken(payload);
+    const nextRefreshToken = signVendorRefreshToken(payload);
+
+    stored.revoked = true;
+    stored.revokedAt = new Date();
+    stored.replacedByToken = nextRefreshToken;
+    await stored.save();
+
+    await VendorRefreshToken.create({
+      vendorId: vendor._id,
+      token: nextRefreshToken,
+      expiresAt: getVendorRefreshTokenExpiryDate()
+    });
+
+    return { accessToken, refreshToken: nextRefreshToken };
   },
 
   logout: async (refreshToken: string | undefined) => {
     if (!refreshToken) return;
-    await VendorRefreshToken.deleteOne({ token: refreshToken });
+    await VendorRefreshToken.findOneAndUpdate(
+      { token: refreshToken },
+      { revoked: true, revokedAt: new Date() }
+    );
   },
 
   changePassword: async (

@@ -10,7 +10,10 @@ const vendorRefreshTokenSchema = new mongoose.Schema(
       index: true
     },
     token: { type: String, required: true, unique: true, index: true },
-    expiresAt: { type: Date, required: true, index: true }
+    expiresAt: { type: Date, required: true, index: true },
+    revoked: { type: Boolean, default: false },
+    revokedAt: { type: Date, default: null },
+    replacedByToken: { type: String, default: null }
   },
   { timestamps: true }
 );

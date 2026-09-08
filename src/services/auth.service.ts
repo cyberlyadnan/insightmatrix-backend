@@ -124,27 +124,55 @@ export const authService = {
   refresh: async (token: string | undefined) => {
     if (!token) throw new ApiError(401, "Missing refresh token");
     const decoded = verifyRefreshToken(token);
-    const stored = await RefreshToken.findOne({ token, revoked: false });
+    const stored = await RefreshToken.findOne({ token });
     if (!stored) throw new ApiError(401, "Invalid refresh token");
-    if (dayjs(stored.expiresAt).isBefore(dayjs())) throw new ApiError(401, "Refresh token expired");
 
     const user = await userRepository.findById(decoded.sub);
     if (!user || user.status !== "active" || user.isActive === false) {
       throw new ApiError(401, "User no longer exists");
     }
 
+    if (stored.revoked) {
+      const revokedAt = stored.revokedAt ? dayjs(stored.revokedAt) : null;
+      const withinGracePeriod = revokedAt && dayjs().diff(revokedAt, "second") <= 30;
+
+      if (withinGracePeriod && stored.replacedByToken) {
+        const replacement = await RefreshToken.findOne({
+          token: stored.replacedByToken,
+          revoked: false
+        });
+        if (replacement && dayjs(replacement.expiresAt).isAfter(dayjs())) {
+          const accessToken = signAccessToken(buildAuthPayload(user));
+          return { accessToken, refreshToken: replacement.token };
+        }
+      }
+
+      await RefreshToken.updateMany({ userId: user._id, revoked: false }, { revoked: true, revokedAt: new Date() });
+      throw new ApiError(401, "Invalid or revoked refresh token");
+    }
+
+    if (dayjs(stored.expiresAt).isBefore(dayjs())) throw new ApiError(401, "Refresh token expired");
+
     const accessToken = signAccessToken(buildAuthPayload(user));
     const nextRefreshToken = signRefreshToken(buildAuthPayload(user));
+
     stored.revoked = true;
+    stored.revokedAt = new Date();
+    stored.replacedByToken = nextRefreshToken;
     await stored.save();
-    await RefreshToken.create({ userId: user._id, token: nextRefreshToken, expiresAt: getRefreshTokenExpiryDate() });
+
+    await RefreshToken.create({
+      userId: user._id,
+      token: nextRefreshToken,
+      expiresAt: getRefreshTokenExpiryDate()
+    });
 
     return { accessToken, refreshToken: nextRefreshToken };
   },
 
   logout: async (token: string | undefined) => {
     if (!token) return;
-    await RefreshToken.findOneAndUpdate({ token }, { revoked: true });
+    await RefreshToken.findOneAndUpdate({ token }, { revoked: true, revokedAt: new Date() });
   },
 
   forgotPassword: async (email: string) => {

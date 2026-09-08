@@ -2,6 +2,7 @@ import Joi from "joi";
 import { PANEL_ROUTING_EVENT_TYPES } from '../constants/panel-survey-routing';
 import {
   PANEL_QUOTA_GROUP_STATUSES,
+  PANEL_SURVEY_AUDIENCES,
   PANEL_SURVEY_DEVICE_TYPES,
   PANEL_SURVEY_GENDER_TARGETS,
   PANEL_SURVEY_STATUSES
@@ -21,6 +22,7 @@ const surveyPayload = {
   externalSurveyId: Joi.string().max(200).allow("", null),
   providerId: Joi.string().hex().length(24).required(),
   surveyStatus: Joi.string().valid(...PANEL_SURVEY_STATUSES).default("draft"),
+  surveyAudience: Joi.string().valid(...PANEL_SURVEY_AUDIENCES).default("public"),
   externalSurveyUrl: Joi.string().trim().max(4000).required(),
   supplierProjectPid: Joi.string().trim().max(200).allow("", null),
   trackingParameterName: Joi.string().trim().max(80).allow("", null),
@@ -63,6 +65,7 @@ export const listPanelSurveysSchema = Joi.object({
     providerId: Joi.string().hex().length(24).allow(""),
     country: Joi.string().trim().max(8),
     surveyStatus: Joi.string().valid(...PANEL_SURVEY_STATUSES),
+    surveyAudience: Joi.string().valid(...PANEL_SURVEY_AUDIENCES),
     sortBy: Joi.string().valid(
       "surveyName",
       "surveyCode",
@@ -90,6 +93,7 @@ export const updatePanelSurveySchema = Joi.object({
     externalSurveyId: Joi.string().max(200).allow("", null),
     providerId: Joi.string().hex().length(24).optional(),
     surveyStatus: Joi.string().valid(...PANEL_SURVEY_STATUSES),
+    surveyAudience: Joi.string().valid(...PANEL_SURVEY_AUDIENCES),
     externalSurveyUrl: Joi.string().trim().max(4000),
     supplierProjectPid: Joi.string().trim().max(200).allow("", null),
     trackingParameterName: Joi.string().trim().max(80).allow("", null),
