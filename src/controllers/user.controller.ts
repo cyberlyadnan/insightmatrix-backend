@@ -11,16 +11,17 @@ import {
   startPanelSurveyAttempt
 } from '../services/panel-member-survey.service';
 import { listWalletLedger } from '../services/panel-member-wallet.service';
+import { listMemberSurveyHistory } from '../services/panel-member-history.service';
 import { User } from '../models/User';
 
 export const listUsers = asyncHandler(async (req, res) => {
-  const users = await userService.list();
-  sendResponse(res, { data: users.map((u) => toPublicUser(u)) });
+  const result = await userService.list(req.validatedQuery ?? req.query);
+  sendResponse(res, { data: result.items, meta: result.meta });
 });
 
 export const getUser = asyncHandler(async (req, res) => {
-  const user = await userService.getById(req.params.id);
-  sendResponse(res, { data: toPublicUser(user) });
+  const detail = await userService.getAdminDetail(req.params.id);
+  sendResponse(res, { data: detail });
 });
 
 export const updateUser = asyncHandler(async (req, res) => {
@@ -94,6 +95,13 @@ export const getMemberPanelWallet = asyncHandler(async (req, res) => {
       entries
     }
   });
+});
+
+export const getMemberPanelSurveyHistory = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  const data = await listMemberSurveyHistory(String(userId), { limit: 100 });
+  sendResponse(res, { data });
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {

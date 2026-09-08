@@ -6,6 +6,7 @@ import {
   deleteUser,
   getMemberPanelPrescreenBundle,
   getMemberPanelWallet,
+  getMemberPanelSurveyHistory,
   getProfile,
   getUser,
   listDeletionRequests,
@@ -22,6 +23,7 @@ import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
 import {
   changePasswordSchema,
+  listUsersSchema,
   panelSurveyIdParamSchema,
   requestDeletionSchema,
   updateProfileSchema,
@@ -38,6 +40,7 @@ router.get("/profile", getProfile);
 router.get("/panel-prescreen", getMemberPanelPrescreenBundle);
 router.post("/panel-prescreen/submit", validate(submitPanelPrescreenSchema), submitMemberPanelPrescreen);
 router.get("/panel/wallet", getMemberPanelWallet);
+router.get("/panel/survey-history", getMemberPanelSurveyHistory);
 router.get("/panel/available-surveys", listMemberAvailablePanelSurveys);
 router.post(
   "/panel/surveys/:surveyId/start-attempt",
@@ -51,7 +54,7 @@ router.post("/profile/deletion-request", validate(requestDeletionSchema), reques
 router.delete("/profile/deletion-request", cancelAccountDeletionRequest);
 router.get("/deletion-requests", authorize(ROLES.ADMIN), listDeletionRequests);
 router.patch("/:id/approve-deletion", authorize(ROLES.ADMIN), approveAccountDeletion);
-router.get("/", authorize(ROLES.ADMIN), listUsers);
+router.get("/", authorize(ROLES.ADMIN), validate(listUsersSchema), listUsers);
 router.get("/:id", authorize(ROLES.ADMIN), getUser);
 router.patch("/:id", authorize(ROLES.ADMIN), validate(updateUserSchema), updateUser);
 router.delete("/:id", authorize(ROLES.ADMIN), deleteUser);

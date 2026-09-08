@@ -153,11 +153,25 @@ export const sendEmail = async ({
 
 export async function getSmtpHealth() {
   const status = getEmailDeliveryStatus();
-  const verify = await verifySmtpConnection();
+  // Cap verify so admin Email Delivery never hangs the request long enough to
+  // collide with access-token refresh races in the browser.
+  const verify = await Promise.race([
+    verifySmtpConnection(),
+    new Promise<{ ok: false; error: string }>((resolve) => {
+      setTimeout(
+        () =>
+          resolve({
+            ok: false,
+            error: "SMTP verification timed out. Check host/port/firewall, then Recheck.",
+          }),
+        8_000
+      );
+    }),
+  ]);
   return {
     ...status,
     verified: verify.ok,
-    verifyError: verify.error || null
+    verifyError: verify.error || null,
   };
 }
 

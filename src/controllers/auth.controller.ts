@@ -31,7 +31,8 @@ export const register = asyncHandler(async (req, res) => {
   if (result.accessToken && result.refreshToken) {
     setAuthCookies(res, result.accessToken, result.refreshToken);
   }
-  const fresh = result.user?.email ? await userRepository.findByEmail(result.user.email) : null;
+  const userEmail = typeof result.user?.email === "string" ? result.user.email : undefined;
+  const fresh = userEmail ? await userRepository.findByEmail(userEmail) : null;
   const userPayload = fresh ? await enrichAuthUser(fresh) : result.user;
   sendResponse(res, {
     statusCode: 201,

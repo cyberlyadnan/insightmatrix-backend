@@ -88,7 +88,7 @@ export const authService = {
     const doc = await EmailVerificationToken.findOne({ token });
     if (!doc || dayjs(doc.expiresAt).isBefore(dayjs())) throw new ApiError(400, "Invalid or expired verification link");
 
-    await userRepository.updateById(doc.userId, { isVerified: true });
+    await userRepository.updateById(doc.userId.toString(), { isVerified: true });
     await EmailVerificationToken.deleteMany({ userId: doc.userId });
     return true;
   },
@@ -155,7 +155,9 @@ export const authService = {
     const stored = await RefreshToken.findOne({ token });
     if (!stored) throw new ApiError(401, "Invalid refresh token");
 
-    const user = await userRepository.findById(decoded.sub);
+    const userId = typeof decoded.sub === "function" ? decoded.sub() : decoded.sub;
+    if (!userId) throw new ApiError(401, "Invalid token subject");
+    const user = await userRepository.findById(String(userId));
     if (!user || user.status !== "active" || user.isActive === false) {
       throw new ApiError(401, "User no longer exists");
     }
@@ -239,7 +241,9 @@ export const authService = {
   resetPassword: async ({ token, password }: { token: string; password: string }) => {
     const resetDoc = await PasswordResetToken.findOne({ token });
     if (!resetDoc || dayjs(resetDoc.expiresAt).isBefore(dayjs())) throw new ApiError(400, "Invalid reset token");
-    await userRepository.updateById(resetDoc.userId, { password: await hashPassword(password) });
+    await userRepository.updateById(resetDoc.userId.toString(), {
+      password: await hashPassword(password),
+    });
     await PasswordResetToken.deleteMany({ userId: resetDoc.userId });
     await RefreshToken.deleteMany({ userId: resetDoc.userId });
   }
