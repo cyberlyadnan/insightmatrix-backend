@@ -19,6 +19,91 @@ export type PanelSurveySeedResult = {
 
 const SEED_SURVEYS = [
   /**
+   * Public India tech study — matches panel members in India, ages ~22–44,
+   * employed, technology industry (aliases: tech/saas).
+   */
+  {
+    surveyCode: "IM_IN_TECH_PULSE_PUBLIC",
+    providerCompanyCode: "DYNATA",
+    surveyName: "India technology workplace pulse",
+    externalSurveyId: "EXT-IM-IN-TECH-PULSE",
+    surveyStatus: "active" as const,
+    surveyAudience: "public" as const,
+    externalSurveyUrl:
+      "https://example.com/panel/in-tech-pulse?study=in-tech&pid=IM_IN_TECH_PULSE_PID",
+    trackingParameterName: "toid",
+    participantQueryParam: "pid",
+    targetCountries: ["IN"],
+    targetGender: "all" as const,
+    targetAgeMin: 22,
+    targetAgeMax: 44,
+    targetProfessions: ["employed_full_time", "full_time", "self_employed", "employed_part_time", "part_time"],
+    targetIndustries: ["technology", "tech", "saas"],
+    targetCompanySizes: [],
+    targetDevices: ["desktop", "mobile"],
+    targetLanguages: ["en"],
+    incidenceRate: 40,
+    estimatedLOI: 10,
+    payoutToUser: 2.5,
+    revenuePerComplete: 4.0,
+    totalQuota: 5_000,
+    remainingQuota: 4_980,
+    surveyPriority: 900,
+    notes:
+      "Seed: public India tech matching survey for member distribution QA (cyberlyadnan profile).",
+    dynamicQuotaGroups: [
+      {
+        groupName: "India tech completes",
+        groupDescription: "Employed tech professionals in India",
+        totalQuota: 5_000,
+        remainingQuota: 4_980,
+        status: "active" as const
+      }
+    ]
+  },
+  /**
+   * Broader digital habits study — India + US + UK, ages 18–54, tech/media/education.
+   */
+  {
+    surveyCode: "IM_DIGITAL_HABITS_PUBLIC",
+    providerCompanyCode: "DYNATA",
+    surveyName: "Digital habits & online research",
+    externalSurveyId: "EXT-IM-DIGITAL-HABITS",
+    surveyStatus: "active" as const,
+    surveyAudience: "public" as const,
+    externalSurveyUrl:
+      "https://example.com/panel/digital-habits?wave=1&pid=IM_DIGITAL_HABITS_PID",
+    trackingParameterName: "toid",
+    participantQueryParam: "pid",
+    targetCountries: ["IN", "US", "GB"],
+    targetGender: "all" as const,
+    targetAgeMin: 18,
+    targetAgeMax: 54,
+    targetProfessions: [],
+    targetIndustries: ["technology", "tech", "media", "education"],
+    targetCompanySizes: [],
+    targetDevices: ["desktop", "mobile", "tablet"],
+    targetLanguages: ["en"],
+    incidenceRate: 55,
+    estimatedLOI: 8,
+    payoutToUser: 1.75,
+    revenuePerComplete: 3.0,
+    totalQuota: 8_000,
+    remainingQuota: 7_950,
+    surveyPriority: 850,
+    notes:
+      "Seed: public multi-country digital habits survey matched via industry + age + country.",
+    dynamicQuotaGroups: [
+      {
+        groupName: "Digital habits completes",
+        groupDescription: "Open quota across IN/US/GB",
+        totalQuota: 8_000,
+        remainingQuota: 7_950,
+        status: "active" as const
+      }
+    ]
+  },
+  /**
    * General audience study: same “open” targeting as QA seeds (no country / age / profession /
    * industry / device filters) so every matched panel member can see it. `payoutToUser: 1` maps to
    * **100 points** in member UI (`pointsFromPayout`: round(1 × 100)).
@@ -29,6 +114,7 @@ const SEED_SURVEYS = [
     surveyName: "General community pulse — 100 points (all members)",
     externalSurveyId: "EXT-IM-GENERAL-100",
     surveyStatus: "active" as const,
+    surveyAudience: "public" as const,
     externalSurveyUrl:
       "https://example.com/panel/general-pulse?study=general&pid=IM_GENERAL_ALL_100_PID",
     trackingParameterName: "toid",
@@ -72,6 +158,7 @@ const SEED_SURVEYS = [
     surveyName: "[QA] Open panel study — test flow to start page",
     externalSurveyId: "EXT-IM-PANEL-OPEN-QA",
     surveyStatus: "active" as const,
+    surveyAudience: "public" as const,
     externalSurveyUrl:
       "https://example.com/panel-qa/open-study?wave=qa&pid=IM_PANEL_OPEN_QA_PID",
     trackingParameterName: "toid",

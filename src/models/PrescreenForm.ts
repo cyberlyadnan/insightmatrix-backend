@@ -53,6 +53,8 @@ const questionSchema = new mongoose.Schema(
     description: { type: String, default: "" },
     helperText: { type: String, default: "" },
     required: { type: Boolean, default: false },
+    /** Locked matching fields on the panel member profile cannot be removed in admin. */
+    isLocked: { type: Boolean, default: false },
     placeholder: { type: String, default: "" },
     defaultValue: { type: mongoose.Schema.Types.Mixed, default: null },
     options: { type: [optionSchema], default: [] },

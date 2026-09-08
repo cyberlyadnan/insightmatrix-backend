@@ -26,6 +26,45 @@ function ageBandToRange(band: string): { min: number; max: number } | null {
   return null;
 }
 
+/** Normalize country codes so UK/GB and legacy lowercase values still match. */
+export function normalizeCountryCode(raw: string | null | undefined): string | null {
+  if (raw == null || String(raw).trim() === "") return null;
+  const c = String(raw).trim().toUpperCase();
+  if (c === "UK" || c === "GBR") return "GB";
+  if (c === "OTHER" || c === "XX") return null;
+  return c;
+}
+
+/**
+ * Expand industry tokens so legacy prescreen values (tech/health/gov)
+ * still match admin targeting (technology/healthcare/government).
+ */
+export function expandIndustryTokens(industry: string | null | undefined): string[] {
+  if (!industry) return [];
+  const i = industry.trim().toLowerCase();
+  const map: Record<string, string[]> = {
+    tech: ["tech", "technology", "saas", "enterprise_software", "it"],
+    technology: ["tech", "technology", "saas", "enterprise_software", "it"],
+    saas: ["saas", "technology", "tech", "enterprise_software"],
+    enterprise_software: ["enterprise_software", "saas", "technology", "tech"],
+    health: ["health", "healthcare"],
+    healthcare: ["health", "healthcare"],
+    gov: ["gov", "government"],
+    government: ["gov", "government"],
+    finance: ["finance", "banking"],
+    banking: ["finance", "banking"],
+    mfg: ["mfg", "manufacturing"],
+    manufacturing: ["mfg", "manufacturing"],
+    retail: ["retail", "cpg"],
+    cpg: ["retail", "cpg"],
+    media: ["media"],
+    education: ["education"],
+    hospitality: ["hospitality"],
+    other: ["other"]
+  };
+  return map[i] ?? [i];
+}
+
 export function parseMemberPanelProfileFromAnswers(answers: Record<string, unknown>): MemberPanelProfile {
   const ageRaw = val(answers, "_q_age");
   const ar = ageRaw != null ? ageBandToRange(String(ageRaw)) : null;
@@ -34,12 +73,9 @@ export function parseMemberPanelProfileFromAnswers(answers: Record<string, unkno
   const gender = genderRaw != null ? String(genderRaw).trim().toLowerCase() : null;
 
   const countryRaw = val(answers, "_q_country");
-  const countryCode =
-    countryRaw != null && String(countryRaw).trim() !== ""
-      ? String(countryRaw).trim().toUpperCase() === "UK"
-        ? "GB"
-        : String(countryRaw).trim().toUpperCase()
-      : null;
+  const countryCode = normalizeCountryCode(
+    countryRaw != null ? String(countryRaw) : null
+  );
 
   const employmentRaw = val(answers, "_q_employment");
   const employment = employmentRaw != null ? String(employmentRaw).trim() : null;
@@ -95,6 +131,11 @@ function employmentToProfessionTokens(employment: string | null): string[] {
     tokens.add("self_employed");
     tokens.add("freelancer");
   }
+  if (e === "other_ne") {
+    tokens.add("homemaker");
+    tokens.add("retired");
+    tokens.add("unemployed");
+  }
   return [...tokens];
 }
 
@@ -139,12 +180,13 @@ export function surveyMatchesMemberProfile(
   },
   profile: MemberPanelProfile
 ): boolean {
-  const countries = survey.targetCountries ?? [];
+  const countries = (survey.targetCountries ?? [])
+    .map((c) => normalizeCountryCode(c))
+    .filter((c): c is string => Boolean(c));
   if (countries.length > 0) {
     const cc = profile.countryCode;
     if (!cc) return false;
-    const ok = countries.some((c) => c.toUpperCase() === cc.toUpperCase());
-    if (!ok) return false;
+    if (!countries.includes(cc)) return false;
   }
 
   if (!genderMatches((survey.targetGender ?? "all") as PanelSurveyGenderTarget, profile.gender)) {
@@ -160,10 +202,8 @@ export function surveyMatchesMemberProfile(
   const profTokens = employmentToProfessionTokens(profile.employment);
   if (!listOverlap(survey.targetProfessions ?? [], profTokens)) return false;
 
-  const ind = profile.industry ? [profile.industry] : [];
-  if (!listOverlap(survey.targetIndustries ?? [], ind) && (survey.targetIndustries ?? []).length > 0) {
-    return false;
-  }
+  const industryTokens = expandIndustryTokens(profile.industry);
+  if (!listOverlap(survey.targetIndustries ?? [], industryTokens)) return false;
 
   const surveyDevices = survey.targetDevices ?? [];
   if (surveyDevices.length > 0) {

@@ -134,7 +134,18 @@ function validateAndNormalizeQuestion(
     if (isEmpty(raw)) {
       return q.required ? { ok: false, message: q.title } : { ok: true, value: "" };
     }
-    const s = String(raw);
+    let s = String(raw).trim();
+
+    // Country of residence: accept full ISO list (frontend uses searchable country picker)
+    if (q.id.endsWith("_q_country") || /country of residence/i.test(q.title)) {
+      s = s.toUpperCase();
+      if (s === "UK" || s === "GBR") s = "GB";
+      if (!/^[A-Z]{2}$/.test(s) && s !== "OTHER") {
+        return { ok: false, message: `Invalid country for “${q.title}”` };
+      }
+      return { ok: true, value: s };
+    }
+
     if (!optionValues(q).has(s)) return { ok: false, message: `Invalid choice for “${q.title}”` };
     return { ok: true, value: s };
   }

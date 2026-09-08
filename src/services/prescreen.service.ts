@@ -6,6 +6,74 @@ import { PrescreenSubmission } from '../models/PrescreenSubmission';
 import { paginatePrescreens, type PrescreenListQuery } from '../utils/query/prescreen-query';
 import { clearOtherRequiredPanelFlags } from './panel-prescreen.service';
 import { buildMemberPanelQuestions } from '../utils/member-panel-questions';
+import {
+  isLockedMemberPanelQuestionId,
+  lockedQuestionLabel
+} from '../utils/member-panel-locked';
+
+const PANEL_MEMBER_PROFILE_SLUG = "panel-member-profile";
+
+type QuestionLike = {
+  id?: string;
+  title?: string;
+  required?: boolean;
+  isLocked?: boolean;
+  [key: string]: unknown;
+};
+
+function enforceLockedPanelQuestions(
+  existingQuestions: QuestionLike[],
+  incomingQuestions: QuestionLike[] | undefined,
+  opts: { isRequiredForPanel: boolean; slug?: string }
+) {
+  const protect =
+    opts.isRequiredForPanel || opts.slug === PANEL_MEMBER_PROFILE_SLUG;
+  if (!protect || !incomingQuestions) return incomingQuestions;
+
+  const existingLocked = existingQuestions.filter(
+    (q) => Boolean(q.isLocked) || isLockedMemberPanelQuestionId(String(q.id || ""))
+  );
+
+  for (const locked of existingLocked) {
+    const id = String(locked.id || "");
+    if (!incomingQuestions.some((q) => String(q.id) === id)) {
+      throw new ApiError(
+        400,
+        `Cannot remove required matching question “${locked.title || lockedQuestionLabel(id)}”. These fields power survey eligibility.`
+      );
+    }
+  }
+
+  // Also ensure canonical locked suffixes always remain if this is the panel profile
+  if (opts.slug === PANEL_MEMBER_PROFILE_SLUG || opts.isRequiredForPanel) {
+    const missingCanonical = [
+      "_q_age",
+      "_q_gender",
+      "_q_country",
+      "_q_employment",
+      "_q_industry",
+      "_q_devices"
+    ].filter((suffix) => !incomingQuestions.some((q) => String(q.id || "").endsWith(suffix)));
+    if (missingCanonical.length > 0) {
+      throw new ApiError(
+        400,
+        `Panel profile must keep core matching fields: ${missingCanonical
+          .map((s) => lockedQuestionLabel(`x${s}`))
+          .join(", ")}.`
+      );
+    }
+  }
+
+  return incomingQuestions.map((q) => {
+    const id = String(q.id || "");
+    const locked = Boolean(q.isLocked) || isLockedMemberPanelQuestionId(id);
+    return {
+      ...q,
+      isLocked: locked,
+      required: locked ? true : Boolean(q.required)
+    };
+  });
+}
 
 function slugify(text: string) {
   return text
@@ -136,13 +204,41 @@ export const prescreenService = {
     return form;
   },
   updateById: async (id: string, payload: Record<string, unknown>) => {
+    const existing = await PrescreenForm.findById(id);
+    if (!existing) throw new ApiError(404, "Prescreen form not found");
+
+    if (
+      existing.slug === PANEL_MEMBER_PROFILE_SLUG &&
+      payload.isRequiredForPanel === false
+    ) {
+      throw new ApiError(
+        400,
+        "The panel member profile must stay required for survey matching."
+      );
+    }
+
     if (payload.isRequiredForPanel === true) {
       await clearOtherRequiredPanelFlags(id);
     }
+
     const nextPayload = { ...payload };
     if (payload.slug || payload.title) {
       nextPayload.slug = await ensureUniqueSlug(String(payload.slug || payload.title), id);
     }
+
+    if (Array.isArray(payload.questions)) {
+      nextPayload.questions = enforceLockedPanelQuestions(
+        existing.questions as unknown as QuestionLike[],
+        payload.questions as QuestionLike[],
+        {
+          isRequiredForPanel:
+            payload.isRequiredForPanel === true ||
+            (payload.isRequiredForPanel !== false && existing.isRequiredForPanel),
+          slug: String(nextPayload.slug || existing.slug)
+        }
+      );
+    }
+
     const form = await PrescreenForm.findByIdAndUpdate(id, nextPayload, { new: true });
     if (!form) throw new ApiError(404, "Prescreen form not found");
     if (form.isRequiredForPanel) {
@@ -166,8 +262,15 @@ export const prescreenService = {
     return form;
   },
   deleteById: async (id: string) => {
-    const form = await PrescreenForm.findByIdAndDelete(id);
+    const form = await PrescreenForm.findById(id);
     if (!form) throw new ApiError(404, "Prescreen form not found");
+    if (form.isRequiredForPanel || form.slug === PANEL_MEMBER_PROFILE_SLUG) {
+      throw new ApiError(
+        400,
+        "Cannot delete the required panel member profile. It is required to match and distribute surveys."
+      );
+    }
+    await PrescreenForm.findByIdAndDelete(id);
   },
   setStatus: async (id: string, status: "draft" | "published") => {
     const form = await PrescreenForm.findByIdAndUpdate(id, { status }, { new: true });
@@ -296,20 +399,20 @@ export const prescreenService = {
    * Upserts the canonical published panel profile prescreen (required for member surveys).
    */
   seedPanelMemberPrescreen: async (createdBy: string) => {
-    const slug = "panel-member-profile";
+    const slug = PANEL_MEMBER_PROFILE_SLUG;
     const seed = "pm_prof_v1";
     const questions = buildMemberPanelQuestions(seed);
     const form = await PrescreenForm.findOneAndUpdate(
       { slug },
       {
         $set: {
-          title: "Member profile prescreen",
+          title: "Member profile & demographics",
           description:
-            "Standard demographic and participation profile used to match you with relevant surveys. Required once before taking panel surveys.",
+            "Your demographic profile is used to match you with relevant public surveys. Core fields (age, gender, country, employment, industry, devices) are required for eligibility and cannot be removed by admins.",
           status: "published",
           visibility: "public",
           isRequiredForPanel: true,
-          tags: ["panel", "required", "demographics", "profiling"],
+          tags: ["panel", "required", "demographics", "profiling", "locked-core"],
           targetAudience: {
             ageGroups: [],
             countries: [],
@@ -320,7 +423,7 @@ export const prescreenService = {
           },
           settings: {
             collectEmail: false,
-            allowEditAfterSubmit: false,
+            allowEditAfterSubmit: true,
             showProgressBar: true
           },
           questions,
