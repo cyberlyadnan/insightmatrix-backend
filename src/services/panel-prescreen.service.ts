@@ -51,21 +51,23 @@ export async function getPanelPrescreenBundle(userId: string, role: string | und
     return {
       needsCompletion: false,
       notConfigured: false,
-      form: null as ReturnType<typeof toPrescreenDto> | null
+      form: null as ReturnType<typeof toPrescreenDto> | null,
+      existingAnswers: null as Record<string, unknown> | null,
     };
+  }
+
+  const form = await findPublishedRequiredPanelPrescreen();
+  if (!form) {
+    return { needsCompletion: false, notConfigured: true, form: null, existingAnswers: null };
   }
 
   if (role === ROLES.ADMIN) {
     return {
       needsCompletion: false,
       notConfigured: false,
-      form: null as ReturnType<typeof toPrescreenDto> | null
+      form: toPrescreenDto(form),
+      existingAnswers: null,
     };
-  }
-
-  const form = await findPublishedRequiredPanelPrescreen();
-  if (!form) {
-    return { needsCompletion: false, notConfigured: true, form: null };
   }
 
   const user = await User.findById(userId).select("panelPrescreenCompletedAt panelPrescreenFormId");
@@ -73,14 +75,26 @@ export async function getPanelPrescreenBundle(userId: string, role: string | und
 
   const fid = user.panelPrescreenFormId;
   const completed = user.panelPrescreenCompletedAt;
-  if (fid && completed && String(fid) === String(form._id)) {
-    return { needsCompletion: false, notConfigured: false, form: null };
+  const isCompleted = Boolean(fid && completed && String(fid) === String(form._id));
+
+  let existingAnswers: Record<string, unknown> | null = null;
+  try {
+    const submission = await PrescreenSubmission.findOne({
+      userId: new Types.ObjectId(userId),
+      formId: form._id,
+    }).select("answers");
+    if (submission?.answers) {
+      existingAnswers = submission.answers as Record<string, unknown>;
+    }
+  } catch {
+    // Ignore submission lookup error
   }
 
   return {
-    needsCompletion: true,
+    needsCompletion: !isCompleted,
     notConfigured: false,
-    form: toPrescreenDto(form)
+    form: toPrescreenDto(form),
+    existingAnswers,
   };
 }
 
