@@ -60,7 +60,7 @@ export const listPanelSurveysSchema = Joi.object({
   params: Joi.object({}).required(),
   query: Joi.object({
     page: Joi.number().integer().min(1).default(1),
-    pageSize: Joi.number().integer().min(1).max(100).default(20),
+    pageSize: Joi.number().integer().min(1).max(1000).default(20),
     search: Joi.string().allow(""),
     providerId: Joi.string().hex().length(24).allow(""),
     country: Joi.string().trim().max(8),

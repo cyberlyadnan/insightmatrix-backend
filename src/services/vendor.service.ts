@@ -94,7 +94,7 @@ export const vendorService = {
 
   list: async (params: ListParams) => {
     const page = Math.max(1, Number(params.page ?? 1));
-    const pageSize = Math.min(500, Math.max(1, Number(params.pageSize ?? 20)));
+    const pageSize = Math.min(1000, Math.max(1, Number(params.pageSize ?? 20)));
     const filter: VendorFilter = {};
 
     if (params.status) filter.status = params.status;

@@ -30,7 +30,7 @@ export const listVendorsSchema = Joi.object({
   params: Joi.object({}).required(),
   query: Joi.object({
     page: Joi.number().integer().min(1).default(1),
-    pageSize: Joi.number().integer().min(1).max(500).default(20),
+    pageSize: Joi.number().integer().min(1).max(1000).default(20),
     search: Joi.string().allow(""),
     status: Joi.string().valid(...VENDOR_STATUSES),
     sortBy: Joi.string().valid(
