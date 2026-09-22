@@ -75,8 +75,15 @@ export async function listMatchedPanelSurveysForUser(
   for (const s of surveys) {
     if (!surveyMatchesMemberProfile(s, profile)) continue;
     const dto = toPanelSurveyDto(s as Parameters<typeof toPanelSurveyDto>[0]);
+    const publicDisplayName = dto.publicSurveyName || dto.surveyName;
     matched.push({
       ...dto,
+      surveyName: publicDisplayName,
+      provider: {
+        id: "insightmatrix",
+        companyName: "InsightMatrix",
+        companyCode: "IM"
+      },
       pointsReward: pointsFromPayout(dto.payoutToUser),
       matchReason: "Profile match",
       memberParticipation: {
@@ -198,6 +205,6 @@ export async function startPanelSurveyAttempt(userId: string, surveyId: string, 
     surveyId: String(survey._id),
     participantQueryParam: dto.participantQueryParam ?? "pid",
     pointsReward,
-    surveyName: dto.surveyName
+    surveyName: dto.publicSurveyName || dto.surveyName
   };
 }

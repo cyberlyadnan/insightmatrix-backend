@@ -18,6 +18,7 @@ const quotaGroupSchema = Joi.object({
 
 const surveyPayload = {
   surveyName: Joi.string().min(2).max(300).required(),
+  publicSurveyName: Joi.string().trim().max(300).allow("", null),
   surveyCode: Joi.string().min(2).max(64).required(),
   externalSurveyId: Joi.string().max(200).allow("", null),
   providerId: Joi.string().hex().length(24).required(),
@@ -89,6 +90,7 @@ export const createPanelSurveySchema = Joi.object({
 export const updatePanelSurveySchema = Joi.object({
   body: Joi.object({
     surveyName: Joi.string().min(2).max(300),
+    publicSurveyName: Joi.string().trim().max(300).allow("", null),
     surveyCode: Joi.string().min(2).max(64),
     externalSurveyId: Joi.string().max(200).allow("", null),
     providerId: Joi.string().hex().length(24).optional(),

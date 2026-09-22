@@ -6,6 +6,7 @@ import {
   PANEL_SURVEY_GENDER_TARGETS,
   PANEL_SURVEY_STATUSES
 } from '../constants/panel-survey';
+import { generatePublicSurveyName } from "../utils/panel-survey-name";
 
 const quotaGroupSchema = new mongoose.Schema(
   {
@@ -26,6 +27,8 @@ const quotaGroupSchema = new mongoose.Schema(
 const panelSurveySchema = new mongoose.Schema(
   {
     surveyName: { type: String, required: true, trim: true, maxlength: 300 },
+    /** Branded public title shown to respondents and panel members */
+    publicSurveyName: { type: String, trim: true, maxlength: 300, default: "" },
     surveyCode: {
       type: String,
       required: true,
@@ -116,9 +119,12 @@ panelSurveySchema.index({ surveyName: "text", surveyCode: "text", externalSurvey
 panelSurveySchema.index({ createdAt: -1 });
 panelSurveySchema.index({ targetCountries: 1 });
 
-panelSurveySchema.pre("save", function normalizeSurveyCode(next) {
+panelSurveySchema.pre("save", function normalizeSurveyFields(next) {
   if (this.surveyCode) {
     this.surveyCode = String(this.surveyCode).trim().toUpperCase();
+  }
+  if (!this.publicSurveyName || !String(this.publicSurveyName).trim()) {
+    this.publicSurveyName = generatePublicSurveyName(this.surveyCode, String(this._id));
   }
   next();
 });

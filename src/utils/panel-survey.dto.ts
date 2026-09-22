@@ -7,6 +7,7 @@ import {
   buildPanelSurveyShareLink,
   buildPanelSurveyShareLinkExample
 } from "./panel-survey-routing-link";
+import { generatePublicSurveyName } from "./panel-survey-name";
 
 export type PanelSurveyProviderSummary = {
   id: string;
@@ -26,6 +27,7 @@ export type PanelSurveyQuotaGroupDto = {
 export type PanelSurveyDto = {
   id: string;
   surveyName: string;
+  publicSurveyName: string;
   surveyCode: string;
   externalSurveyId: string;
   providerId: string;
@@ -70,6 +72,8 @@ export type PanelSurveyDto = {
 export type PanelSurveyPublicDto = {
   id: string;
   surveyName: string;
+  publicSurveyName: string;
+  incidenceRate: number | null;
   estimatedLOI: number | null;
   payoutToUser: number | null;
   targetCountries: string[];
@@ -79,7 +83,7 @@ export type PanelSurveyPublicDto = {
   trackingParameterName: string;
   /** Query key panels use on OUR landing URL (e.g. ?pid=…) — read client-side and forwarded as trackingParameterName */
   participantQueryParam: string;
-  providerName: string | null;
+  providerName: string;
   providerCode: string | null;
 };
 
@@ -129,6 +133,7 @@ function resolveProvider(
 export function toPanelSurveyDto(doc: {
   _id: unknown;
   surveyName: string;
+  publicSurveyName?: string;
   surveyCode: string;
   externalSurveyId?: string;
   providerId: unknown;
@@ -176,6 +181,9 @@ export function toPanelSurveyDto(doc: {
   return {
     id: String(doc._id),
     surveyName: doc.surveyName,
+    publicSurveyName:
+      doc.publicSurveyName?.trim() ||
+      generatePublicSurveyName(doc.surveyCode, String(doc._id)),
     surveyCode: doc.surveyCode,
     externalSurveyId: doc.externalSurveyId ?? "",
     providerId: providerObjectId,
@@ -222,6 +230,9 @@ export function toPanelSurveyDto(doc: {
 export function toPanelSurveyPublicDto(doc: {
   _id: unknown;
   surveyName: string;
+  publicSurveyName?: string;
+  surveyCode?: string;
+  incidenceRate?: number | null;
   estimatedLOI?: number | null;
   payoutToUser?: number | null;
   targetCountries?: string[];
@@ -231,10 +242,15 @@ export function toPanelSurveyPublicDto(doc: {
   participantQueryParam?: string;
   providerId: unknown;
 }): PanelSurveyPublicDto {
-  const { summary } = resolveProvider(doc.providerId);
+  const publicName =
+    (doc.publicSurveyName && doc.publicSurveyName.trim()) ||
+    generatePublicSurveyName(doc.surveyCode, String(doc._id));
+
   return {
     id: String(doc._id),
-    surveyName: doc.surveyName,
+    surveyName: publicName,
+    publicSurveyName: publicName,
+    incidenceRate: doc.incidenceRate ?? null,
     estimatedLOI: doc.estimatedLOI ?? null,
     payoutToUser: doc.payoutToUser ?? null,
     targetCountries: doc.targetCountries ?? [],
@@ -242,7 +258,7 @@ export function toPanelSurveyPublicDto(doc: {
     externalSurveyUrl: doc.externalSurveyUrl,
     trackingParameterName: doc.trackingParameterName ?? "toid",
     participantQueryParam: doc.participantQueryParam ?? "toid",
-    providerName: summary?.companyName ?? null,
-    providerCode: summary?.companyCode ?? null
+    providerName: "InsightMatrix",
+    providerCode: null
   };
 }

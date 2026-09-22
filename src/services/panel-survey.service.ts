@@ -10,6 +10,7 @@ import {
   inferTrackingParameterFromUrl,
   normalizeMalformedSupplierUrl
 } from '../utils/supplier-survey-url';
+import { generatePublicSurveyName } from '../utils/panel-survey-name';
 import { companySurveyPaymentService } from './company-survey-payment.service';
 
 const SORT_FIELDS = [
@@ -131,6 +132,9 @@ export const panelSurveyService = {
     payload.externalSurveyUrl = entryUrl;
     payload.trackingParameterName = resolveTrackingParameterName(payload, entryUrl);
     payload.supplierProjectPid = resolveSupplierProjectPid(payload, entryUrl);
+    if (!payload.publicSurveyName || !String(payload.publicSurveyName).trim()) {
+      payload.publicSurveyName = generatePublicSurveyName(String(payload.surveyCode ?? ""), undefined);
+    }
     await assertUniqueSurveyFields({
       surveyName: String(payload.surveyName ?? ""),
       surveyCode: String(payload.surveyCode ?? ""),
@@ -281,6 +285,12 @@ export const panelSurveyService = {
       payload.supplierProjectPid = resolveSupplierProjectPid(payload, mergedUrl);
     } else if (payload.trackingParameterName !== undefined) {
       payload.trackingParameterName = normalizeTrackingParameterName(payload.trackingParameterName);
+    }
+    if (payload.publicSurveyName !== undefined && !String(payload.publicSurveyName).trim()) {
+      payload.publicSurveyName = generatePublicSurveyName(
+        payload.surveyCode ? String(payload.surveyCode) : undefined,
+        id
+      );
     }
     try {
       const doc = await panelSurveyRepository.updateById(id, payload);

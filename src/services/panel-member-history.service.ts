@@ -5,6 +5,7 @@ import { PanelSurveyRoutingEvent } from "../models/PanelSurveyRoutingEvent";
 import { SurveyRespondentProfile } from "../models/SurveyRespondentProfile";
 import { WalletLedger } from "../models/WalletLedger";
 import { pointsFromPayout } from "../utils/member-panel-profile-match";
+import { generatePublicSurveyName } from "../utils/panel-survey-name";
 
 export type MemberAttemptOutcome =
   | "completed"
@@ -112,8 +113,7 @@ export async function listMemberSurveyHistory(
 
   const [surveys, events, profiles, ledgerRows] = await Promise.all([
     PanelSurvey.find({ _id: { $in: surveyIds } })
-      .select("surveyName surveyCode estimatedLOI payoutToUser providerId")
-      .populate("providerId", "companyName")
+      .select("surveyName publicSurveyName surveyCode estimatedLOI payoutToUser providerId")
       .lean(),
     PanelSurveyRoutingEvent.find({
       supplierParticipantRef: { $in: tokens }
@@ -200,7 +200,9 @@ export async function listMemberSurveyHistory(
       id: String(a._id),
       attemptToken: token,
       surveyId: String(a.panelSurveyId),
-      surveyName: survey?.surveyName || "Survey",
+      surveyName:
+        survey?.publicSurveyName?.trim() ||
+        generatePublicSurveyName(survey?.surveyCode, String(survey?._id ?? a.panelSurveyId)),
       surveyCode: survey?.surveyCode || "",
       estimatedLOI: survey?.estimatedLOI ?? null,
       attemptStatus: a.status as "started" | "completed_rewarded",
@@ -210,7 +212,7 @@ export async function listMemberSurveyHistory(
       pointsPotential: potential,
       startedAt: a.createdAt ? a.createdAt.toISOString() : null,
       resolvedAt,
-      providerName: provider?.companyName ?? null
+      providerName: "InsightMatrix"
     };
   });
 
