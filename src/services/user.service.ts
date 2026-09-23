@@ -78,6 +78,34 @@ function buildPrescreenAnswerRows(
 export const userService = {
   create: (payload: Record<string, unknown>) => userRepository.create(payload),
 
+  createUser: async (payload: {
+    fullName: string;
+    email: string;
+    password: string;
+    role?: string;
+    status?: string;
+    isVerified?: boolean;
+  }) => {
+    const email = payload.email.trim().toLowerCase();
+    const existing = await userRepository.findByEmail(email);
+    if (existing) {
+      throw new ApiError(400, "Email address is already registered");
+    }
+    const hashedPassword = await hashPassword(payload.password);
+    const isVerified = payload.isVerified ?? true;
+    const created = await userRepository.create({
+      fullName: payload.fullName.trim(),
+      name: payload.fullName.trim(),
+      email,
+      password: hashedPassword,
+      role: payload.role || "user",
+      status: payload.status || "active",
+      isVerified,
+      emailVerifiedAt: isVerified ? new Date() : null,
+    });
+    return toPublicUser(created);
+  },
+
   list: async (params: ListParams = {}) => {
     const page = Math.max(1, Number(params.page ?? 1));
     const pageSize = Math.min(100, Math.max(1, Number(params.pageSize ?? 25)));

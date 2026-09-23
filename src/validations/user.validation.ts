@@ -1,5 +1,18 @@
 import Joi from "joi";
 
+export const createUserSchema = Joi.object({
+  body: Joi.object({
+    fullName: Joi.string().min(2).max(120).required(),
+    email: Joi.string().email().required(),
+    password: Joi.string().min(8).required(),
+    role: Joi.string().valid("admin", "user", "survey_manager").default("user"),
+    status: Joi.string().valid("active", "suspended", "deactivated").default("active"),
+    isVerified: Joi.boolean().default(true),
+  }).required(),
+  params: Joi.object({}).required(),
+  query: Joi.object({}).required(),
+});
+
 export const listUsersSchema = Joi.object({
   body: Joi.object({}).optional(),
   params: Joi.object({}).required(),

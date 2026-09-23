@@ -3,6 +3,7 @@ import {
   approveAccountDeletion,
   cancelAccountDeletionRequest,
   changePassword,
+  createUser,
   deleteUser,
   getMemberPanelPrescreenBundle,
   getMemberPanelWallet,
@@ -23,6 +24,7 @@ import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
 import {
   changePasswordSchema,
+  createUserSchema,
   listUsersSchema,
   panelSurveyIdParamSchema,
   requestDeletionSchema,
@@ -55,6 +57,7 @@ router.delete("/profile/deletion-request", cancelAccountDeletionRequest);
 router.get("/deletion-requests", authorize(ROLES.ADMIN), listDeletionRequests);
 router.patch("/:id/approve-deletion", authorize(ROLES.ADMIN), approveAccountDeletion);
 router.get("/", authorize(ROLES.ADMIN), validate(listUsersSchema), listUsers);
+router.post("/", authorize(ROLES.ADMIN), validate(createUserSchema), createUser);
 router.get("/:id", authorize(ROLES.ADMIN), getUser);
 router.patch("/:id", authorize(ROLES.ADMIN), validate(updateUserSchema), updateUser);
 router.delete("/:id", authorize(ROLES.ADMIN), deleteUser);

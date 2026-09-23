@@ -14,6 +14,11 @@ import { listWalletLedger } from '../services/panel-member-wallet.service';
 import { listMemberSurveyHistory } from '../services/panel-member-history.service';
 import { User } from '../models/User';
 
+export const createUser = asyncHandler(async (req, res) => {
+  const user = await userService.createUser(req.body);
+  sendResponse(res, { statusCode: 201, message: "User created successfully", data: user });
+});
+
 export const listUsers = asyncHandler(async (req, res) => {
   const result = await userService.list(req.validatedQuery ?? req.query);
   sendResponse(res, { data: result.items, meta: result.meta });
@@ -30,6 +35,9 @@ export const updateUser = asyncHandler(async (req, res) => {
 });
 
 export const deleteUser = asyncHandler(async (req, res) => {
+  if (String(req.user?._id) === String(req.params.id)) {
+    throw new ApiError(400, "You cannot delete your own logged-in account");
+  }
   await userService.deleteById(req.params.id);
   sendResponse(res, { message: "User deleted" });
 });
