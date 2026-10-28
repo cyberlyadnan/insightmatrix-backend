@@ -129,7 +129,8 @@ export const authService = {
   },
 
   login: async ({ email, password }: { email: string; password: string }) => {
-    const user = await userRepository.findByEmail(email, true);
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const user = await userRepository.findByEmail(normalizedEmail, true);
     if (!user) throw new ApiError(401, "Invalid credentials");
     const isPasswordValid = await comparePassword(password, user.password);
     if (!isPasswordValid) throw new ApiError(401, "Invalid credentials");
@@ -151,7 +152,12 @@ export const authService = {
 
   refresh: async (token: string | undefined) => {
     if (!token) throw new ApiError(401, "Missing refresh token");
-    const decoded = verifyRefreshToken(token);
+    let decoded: any;
+    try {
+      decoded = verifyRefreshToken(token);
+    } catch {
+      throw new ApiError(401, "Invalid or expired refresh token");
+    }
     const stored = await RefreshToken.findOne({ token });
     if (!stored) throw new ApiError(401, "Invalid refresh token");
 

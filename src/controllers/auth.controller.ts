@@ -55,14 +55,13 @@ export const refresh = asyncHandler(async (req, res) => {
     setAuthCookies(res, accessToken, refreshToken);
     sendResponse(res, { message: "Token refreshed", data: { ok: true } });
   } catch (err) {
-    if (err instanceof ApiError && err.statusCode >= 400 && err.statusCode < 500) {
-      return res.status(err.statusCode).json({
-        success: false,
-        message: err.message,
-        details: err.details ?? null
-      });
-    }
-    throw err;
+    clearAuthCookies(res);
+    const statusCode = err instanceof ApiError ? err.statusCode : 401;
+    return res.status(statusCode).json({
+      success: false,
+      message: err instanceof Error ? err.message : "Invalid or expired session",
+      details: err instanceof ApiError ? err.details ?? null : null
+    });
   }
 });
 

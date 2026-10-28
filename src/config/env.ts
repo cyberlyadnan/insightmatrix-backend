@@ -58,7 +58,10 @@ const schema = Joi.object({
   SECURITY_GEO_ENABLED: Joi.boolean().default(false),
   SECURITY_BOT_ENABLED: Joi.boolean().default(false),
   SECURITY_BOT_BLOCK: Joi.boolean().default(false),
-  GEOIP_API_URL: Joi.string().uri().default("http://ip-api.com/json")
+  GEOIP_API_URL: Joi.string().uri().default("http://ip-api.com/json"),
+  /** SurveySherpa Suppliers API Integration */
+  SURVEYSHERPA_API_BASE_URL: Joi.string().uri().default("https://api.surveysherpa.com"),
+  SURVEYSHERPA_ACCESS_KEY: Joi.string().allow("").default("uQHlvcU5MUjaosUeEBTPwsa0IEZi9Sth")
 }).unknown();
 
 const { value, error } = schema.validate(process.env);

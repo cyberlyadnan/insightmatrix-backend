@@ -18,6 +18,17 @@ type SeedRow = {
 /** Realistic panel / sample-supply partners for dev & QA (public brand names only). */
 const SURVEY_PROVIDERS: SeedRow[] = [
   {
+    companyName: "SurveySherpa",
+    companyCode: "SURVEYSHERPA",
+    contactPersonName: "SurveySherpa Partner Desk",
+    companyEmail: "support@surveysherpa.com",
+    companyPhone: "+1 (800) 555-0199",
+    websiteUrl: "https://surveysherpa.com",
+    providerType: "api_partner",
+    status: "active",
+    notes: "Direct automated API partner connected via SurveySherpa Suppliers API."
+  },
+  {
     companyName: "Dynata",
     companyCode: "DYNATA",
     contactPersonName: "Sarah Mitchell",

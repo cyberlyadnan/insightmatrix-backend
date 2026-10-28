@@ -22,6 +22,7 @@ import securityLogsRoutes from './security-logs.routes';
 import serviceRoutes from './service.routes';
 import siteSettingsRoutes from './site-settings.routes';
 import emailRoutes from './email.routes';
+import surveysherpaRoutes from './surveysherpa.routes';
 
 const router = Router();
 
@@ -48,6 +49,7 @@ router.use("/security-logs", securityLogsRoutes);
 router.use("/services", serviceRoutes);
 router.use("/settings", siteSettingsRoutes);
 router.use("/email", emailRoutes);
+router.use("/surveysherpa", surveysherpaRoutes);
 
 export default router;
 
