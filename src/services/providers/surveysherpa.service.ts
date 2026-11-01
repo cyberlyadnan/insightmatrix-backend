@@ -12,6 +12,7 @@ import type {
 export class SurveySherpaService {
   private accessKey: string;
   private baseUrl: string;
+  private definitionsCache: { data: SurveySherpaLanguage[]; expiresAt: number } | null = null;
 
   constructor(accessKey?: string, baseUrl?: string) {
     this.baseUrl = (baseUrl || env.SURVEYSHERPA_API_BASE_URL || "https://api.surveysherpa.com").replace(/\/$/, "");
@@ -21,6 +22,7 @@ export class SurveySherpaService {
   public setCredentials(accessKey: string, baseUrl?: string): void {
     this.accessKey = accessKey;
     if (baseUrl) this.baseUrl = baseUrl.replace(/\/$/, "");
+    this.definitionsCache = null;
   }
 
   public getAccessKey(): string {
@@ -114,15 +116,19 @@ export class SurveySherpaService {
   }
 
   public async getDefinitions(): Promise<SurveySherpaLanguage[]> {
+    if (this.definitionsCache && Date.now() < this.definitionsCache.expiresAt) {
+      return this.definitionsCache.data;
+    }
     try {
       const data = await this.request<{ languages: SurveySherpaLanguage[] }>("/api/supplier/getDefinitions");
+      let languages: SurveySherpaLanguage[] = [];
       if (data && Array.isArray((data as { languages?: SurveySherpaLanguage[] }).languages)) {
-        return (data as { languages: SurveySherpaLanguage[] }).languages;
+        languages = (data as { languages: SurveySherpaLanguage[] }).languages;
+      } else if (Array.isArray(data)) {
+        languages = data as unknown as SurveySherpaLanguage[];
       }
-      if (Array.isArray(data)) {
-        return data as unknown as SurveySherpaLanguage[];
-      }
-      return [];
+      this.definitionsCache = { data: languages, expiresAt: Date.now() + 30 * 60 * 1000 };
+      return languages;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to fetch definitions";
       logger.error(`SurveySherpa getDefinitions error: ${message}`);

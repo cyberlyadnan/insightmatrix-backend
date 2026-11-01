@@ -94,9 +94,11 @@ export class SurveySherpaSyncService {
     const surveys: RemoteSurveyWithStatus[] = (remoteSurveys || []).map((s) => {
       const sAny = s as unknown as Record<string, unknown>;
       const survey_id = Number(s?.survey_id ?? sAny?.id) || 0;
-      const survey_name = String(
-        s?.survey_name ?? sAny?.name ?? sAny?.surveyName ?? `Survey #${survey_id}`
-      );
+      const rawName = s?.survey_name ?? sAny?.name ?? sAny?.surveyName;
+      const survey_name =
+        rawName !== undefined && rawName !== null && String(rawName).trim() && isNaN(Number(rawName))
+          ? String(rawName).trim()
+          : `SurveySherpa Study #${survey_id}`;
       const match = existingMap.get(String(survey_id));
       return {
         ...s,
@@ -130,7 +132,25 @@ export class SurveySherpaSyncService {
     options: SyncSurveysOptions = {}
   ): Promise<{ survey: unknown; isNew: boolean }> {
     const providerId = await this.ensureSurveySherpaCompany();
-    const remoteSurvey = await surveySherpaService.getSurveyDetails(surveyId);
+    let remoteSurvey: (SurveySherpaSurveySummary & { qualifications?: unknown[] }) | null = null;
+
+    try {
+      remoteSurvey = await surveySherpaService.getSurveyDetails(surveyId);
+    } catch (e) {
+      logger.warn(
+        `Could not get survey details for survey ${surveyId}: ${
+          e instanceof Error ? e.message : String(e)
+        }, falling back to summary`
+      );
+    }
+
+    if (!remoteSurvey) {
+      const all = await surveySherpaService.getAllSurveys();
+      const found = all.find((s) => Number(s.survey_id) === Number(surveyId));
+      if (found) {
+        remoteSurvey = { ...found, qualifications: [] };
+      }
+    }
 
     if (!remoteSurvey) {
       throw new Error(`SurveySherpa survey with ID ${surveyId} was not found on remote server`);
@@ -199,8 +219,9 @@ export class SurveySherpaSyncService {
     providerId: Types.ObjectId,
     options: SyncSurveysOptions
   ): Promise<{ survey: unknown; isNew: boolean }> {
-    const externalSurveyId = String(remote.survey_id);
-    const surveyCode = `SS-${remote.survey_id}`.toUpperCase();
+    const surveyIdNum = Number(remote.survey_id);
+    const externalSurveyId = String(surveyIdNum);
+    const surveyCode = `SS-${surveyIdNum}`.toUpperCase();
     const targetStatus = options.defaultStatus || (options.autoActivate ? "active" : "draft");
 
     const existing = await PanelSurvey.findOne({
@@ -213,15 +234,85 @@ export class SurveySherpaSyncService {
     const quota = Number(remote.complete_required) || 100;
     const rawUrl = String(remote.url || "").trim();
 
-    // Map language id to a country/language code if available
+    // Map language id to country and language code via definitions cache
+    let langDef: { country_code?: string; language?: string } | undefined;
+    try {
+      const defs = await surveySherpaService.getDefinitions();
+      langDef = defs.find((d) => d.id === remote.lang_id);
+    } catch {
+      // ignore
+    }
+
+    const targetCountries: string[] = [];
+    if (langDef?.country_code) {
+      targetCountries.push(langDef.country_code.toUpperCase());
+    } else if (remote.lang_id === 1) {
+      targetCountries.push("US");
+    }
+
     const targetLanguages: string[] = [];
-    if (remote.lang_id === 1) targetLanguages.push("en-US");
-    else targetLanguages.push(`lang_${remote.lang_id}`);
+    if (langDef?.language) {
+      targetLanguages.push(langDef.language);
+    } else if (remote.lang_id === 1) {
+      targetLanguages.push("en-US");
+    }
+
+    // Parse qualifications if present (e.g. AGE, GENDER)
+    let targetAgeMin: number | null = null;
+    let targetAgeMax: number | null = null;
+    let targetGender: "all" | "male" | "female" = "all";
+
+    if (Array.isArray(remote.qualifications)) {
+      for (const q of remote.qualifications as any[]) {
+        const key = String(q?.questionKey || q?.question_key || "").toUpperCase();
+        const text = String(q?.questionText || q?.question_text || "").toLowerCase();
+
+        // Age qualification
+        if (key === "AGE" || text.includes("age")) {
+          const opts = q?.options || [];
+          if (opts.length > 0) {
+            const str = String(opts[0]).trim();
+            const match = str.match(/^(\d+)\s*-\s*(\d+)$/);
+            if (match) {
+              targetAgeMin = parseInt(match[1], 10);
+              targetAgeMax = parseInt(match[2], 10);
+            } else {
+              const num = parseInt(str, 10);
+              if (!isNaN(num)) targetAgeMin = num;
+            }
+          }
+        }
+
+        // Gender qualification (1: Male, 2: Female)
+        if (key === "GENDER" || text.includes("gender")) {
+          const opts = (q?.options || []).map((o: any) => String(o).trim());
+          const hasMale = opts.includes("1") || opts.some((o: string) => o.toLowerCase() === "male");
+          const hasFemale = opts.includes("2") || opts.some((o: string) => o.toLowerCase() === "female");
+          if (hasMale && !hasFemale) {
+            targetGender = "male";
+          } else if (hasFemale && !hasMale) {
+            targetGender = "female";
+          } else {
+            targetGender = "all";
+          }
+        }
+      }
+    }
+
+    const rawName =
+      remote.survey_name !== undefined && remote.survey_name !== null
+        ? String(remote.survey_name).trim()
+        : "";
+    const surveyName =
+      rawName && isNaN(Number(rawName))
+        ? rawName
+        : `SurveySherpa Study #${surveyIdNum}`;
+
+    const rawDesc = remote.description ? String(remote.description).trim() : "";
 
     const updateDoc: Record<string, unknown> = {
-      surveyName: remote.survey_name?.trim() || `SurveySherpa Study ${remote.survey_id}`,
-      publicSurveyName:
-        remote.survey_name?.trim() || generatePublicSurveyName(surveyCode, externalSurveyId),
+      surveyName,
+      publicSurveyName: generatePublicSurveyName(surveyCode, externalSurveyId),
       surveyCode,
       externalSurveyId,
       providerId,
@@ -235,9 +326,14 @@ export class SurveySherpaSyncService {
       revenuePerComplete: cpi,
       companyBillingAmount: cpi,
       totalQuota: quota,
+      targetCountries,
       targetLanguages,
-      notes: remote.description ? `SurveySherpa: ${remote.description}` : "Imported from SurveySherpa"
+      targetGender,
+      notes: rawDesc ? `SurveySherpa: ${rawDesc}` : "Imported from SurveySherpa"
     };
+
+    if (targetAgeMin !== null) updateDoc.targetAgeMin = targetAgeMin;
+    if (targetAgeMax !== null) updateDoc.targetAgeMax = targetAgeMax;
 
     if (!existing) {
       updateDoc.surveyStatus = targetStatus;
