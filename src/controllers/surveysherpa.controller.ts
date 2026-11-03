@@ -131,10 +131,11 @@ export const importSingleSurvey = asyncHandler(async (req, res) => {
   const surveyId = Number(req.params.id);
   if (!surveyId) throw new ApiError(400, "Valid survey ID is required");
 
-  const { autoActivate, defaultStatus } = req.body;
+  const { autoActivate, defaultStatus, surveyAudience } = req.body;
   const result = await surveySherpaSyncService.importSurveyById(surveyId, {
     autoActivate: Boolean(autoActivate),
-    defaultStatus
+    defaultStatus,
+    surveyAudience: surveyAudience || "internal"
   });
 
   sendResponse(res, {
@@ -148,11 +149,12 @@ export const importSingleSurvey = asyncHandler(async (req, res) => {
  * Trigger sync of all surveys from SurveySherpa
  */
 export const postSyncAllSurveys = asyncHandler(async (req, res) => {
-  const { autoActivate, syncQualifications, defaultStatus } = req.body;
+  const { autoActivate, syncQualifications, defaultStatus, surveyAudience } = req.body;
   const result = await surveySherpaSyncService.syncAllSurveys({
     autoActivate: Boolean(autoActivate),
     syncQualifications: Boolean(syncQualifications),
-    defaultStatus
+    defaultStatus,
+    surveyAudience: surveyAudience || "internal"
   });
 
   sendResponse(res, {

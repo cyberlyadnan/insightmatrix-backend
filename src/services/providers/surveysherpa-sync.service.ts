@@ -13,6 +13,7 @@ export interface SyncSurveysOptions {
   autoActivate?: boolean;
   defaultStatus?: "draft" | "active" | "paused";
   syncQualifications?: boolean;
+  surveyAudience?: "public" | "internal" | "private";
 }
 
 export interface SyncSurveysResult {
@@ -223,6 +224,7 @@ export class SurveySherpaSyncService {
     const externalSurveyId = String(surveyIdNum);
     const surveyCode = `SS-${surveyIdNum}`.toUpperCase();
     const targetStatus = options.defaultStatus || (options.autoActivate ? "active" : "draft");
+    const targetAudience = options.surveyAudience || "internal";
 
     const existing = await PanelSurvey.findOne({
       $or: [{ externalSurveyId, providerId }, { surveyCode }]
@@ -316,7 +318,7 @@ export class SurveySherpaSyncService {
       surveyCode,
       externalSurveyId,
       providerId,
-      surveyAudience: "public",
+      surveyAudience: targetAudience,
       externalSurveyUrl: rawUrl,
       supplierProjectPid: externalSurveyId,
       trackingParameterName: "toid",
