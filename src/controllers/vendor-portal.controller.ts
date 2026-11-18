@@ -39,3 +39,23 @@ export const vendorHourlyReport = asyncHandler(async (req, res) => {
   const report = await vendorPortalService.getHourlyReport(String(req.vendor!._id), query);
   sendResponse(res, { data: report });
 });
+
+export const vendorApiTrafficReport = asyncHandler(async (req, res) => {
+  const query = (req.validatedQuery ?? req.query) as {
+    dateFrom?: string;
+    dateTo?: string;
+    country?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  };
+  const report = await vendorPortalService.getApiTrafficReport(String(req.vendor!._id), query);
+  sendResponse(res, { data: report });
+});
+
+export const vendorLiveInventory = asyncHandler(async (req, res) => {
+  const query = (req.validatedQuery ?? req.query) as { country?: string };
+  const inventory = await vendorPortalService.getLiveInventory(String(req.vendor!._id), query);
+  sendResponse(res, { data: inventory });
+});

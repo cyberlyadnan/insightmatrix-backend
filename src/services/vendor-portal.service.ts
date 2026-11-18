@@ -7,9 +7,12 @@ import { toVendorDashboardSummary, toVendorPublicProfile } from "../utils/vendor
 import type { VendorCallbackUrls } from "../types/vendor-callback";
 import { normalizeVendorCallbackUrls } from "../utils/vendor-callback";
 import {
+  fetchVendorApiTrafficReport,
   fetchVendorDashboardStatsForRange,
   fetchVendorHourlyReport,
+  fetchVendorLiveInventory,
   type DateRangeInput,
+  type VendorApiTrafficReportParams,
   type VendorHourlyReportParams
 } from "./vendor-portal-reports.service";
 
@@ -91,5 +94,13 @@ export const vendorPortalService = {
 
   getHourlyReport: async (vendorId: string, params: VendorHourlyReportParams) => {
     return fetchVendorHourlyReport(vendorId, params);
+  },
+
+  getApiTrafficReport: async (vendorId: string, params: VendorApiTrafficReportParams) => {
+    return fetchVendorApiTrafficReport(vendorId, params);
+  },
+
+  getLiveInventory: async (vendorId: string, params?: { country?: string }) => {
+    return fetchVendorLiveInventory(vendorId, params);
   }
 };

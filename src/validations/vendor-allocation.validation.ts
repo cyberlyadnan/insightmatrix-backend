@@ -118,3 +118,36 @@ export const vendorHourlyReportQuerySchema = Joi.object({
     tzOffsetMinutes: Joi.number().integer().min(-840).max(840).default(0)
   }).required()
 });
+
+export const vendorApiTrafficReportQuerySchema = Joi.object({
+  body: Joi.object({}).optional(),
+  params: emptyObject,
+  query: Joi.object({
+    dateFrom: Joi.string().isoDate().allow(""),
+    dateTo: Joi.string().isoDate().allow(""),
+    country: Joi.string().trim().max(16).allow(""),
+    status: Joi.string()
+      .valid(
+        "all",
+        "complete",
+        "terminate",
+        "quota_full",
+        "quality_reject",
+        "drop_out",
+        "started",
+        "redirected"
+      )
+      .default("all"),
+    search: Joi.string().trim().max(200).allow(""),
+    page: Joi.number().integer().min(1).default(1),
+    pageSize: Joi.number().integer().min(1).max(500).default(50)
+  }).required()
+});
+
+export const vendorLiveInventoryQuerySchema = Joi.object({
+  body: Joi.object({}).optional(),
+  params: emptyObject,
+  query: Joi.object({
+    country: Joi.string().trim().max(16).allow("")
+  }).required()
+});
