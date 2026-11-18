@@ -1,11 +1,18 @@
 import { Types } from "mongoose";
 import { VendorSurveyAllocation } from "../models/VendorSurveyAllocation";
-import type { VendorAllocationStatus } from "../constants/vendor-allocation";
+import type {
+  VendorAllocationResponseStatus,
+  VendorAllocationStatus
+} from "../constants/vendor-allocation";
+
+const PANEL_SURVEY_SAFE_POPULATE_FIELDS =
+  "surveyName publicSurveyName surveyCode surveyStatus targetCountries targetGender targetAgeMin targetAgeMax targetProfessions targetIndustries targetCompanySizes targetDevices targetLanguages incidenceRate estimatedLOI totalQuota remainingQuota dynamicQuotaGroups startDate endDate notes";
 
 export type VendorAllocationFilter = {
   panelSurveyId?: string;
   vendorId?: string;
   status?: VendorAllocationStatus;
+  vendorResponseStatus?: VendorAllocationResponseStatus;
   search?: string;
   page?: number;
   pageSize?: number;
@@ -20,7 +27,7 @@ export const vendorAllocationRepository = {
   async findById(id: string) {
     if (!Types.ObjectId.isValid(id)) return null;
     return VendorSurveyAllocation.findById(id)
-      .populate("panelSurveyId", "surveyName surveyCode surveyStatus remainingQuota totalQuota")
+      .populate("panelSurveyId", PANEL_SURVEY_SAFE_POPULATE_FIELDS)
       .populate("vendorId", "vendorCode companyName status")
       .lean();
   },
@@ -60,13 +67,32 @@ export const vendorAllocationRepository = {
       q.vendorId = new Types.ObjectId(filter.vendorId);
     }
     if (filter.status) q.status = filter.status;
+    const andClauses: Record<string, unknown>[] = [];
+    if (filter.vendorResponseStatus) {
+      if (filter.vendorResponseStatus === "pending") {
+        andClauses.push({
+          $or: [
+            { vendorResponseStatus: "pending" },
+            { vendorResponseStatus: { $exists: false } },
+            { vendorResponseStatus: null }
+          ]
+        });
+      } else {
+        q.vendorResponseStatus = filter.vendorResponseStatus;
+      }
+    }
     if (filter.search?.trim()) {
       const s = filter.search.trim();
-      q.$or = [
-        { allocationCode: { $regex: s, $options: "i" } },
-        { routingSlug: { $regex: s, $options: "i" } },
-        { notes: { $regex: s, $options: "i" } }
-      ];
+      andClauses.push({
+        $or: [
+          { allocationCode: { $regex: s, $options: "i" } },
+          { routingSlug: { $regex: s, $options: "i" } },
+          { notes: { $regex: s, $options: "i" } }
+        ]
+      });
+    }
+    if (andClauses.length > 0) {
+      q.$and = andClauses;
     }
 
     const [items, total] = await Promise.all([
@@ -74,7 +100,7 @@ export const vendorAllocationRepository = {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(pageSize)
-        .populate("panelSurveyId", "surveyName surveyCode surveyStatus remainingQuota totalQuota")
+        .populate("panelSurveyId", PANEL_SURVEY_SAFE_POPULATE_FIELDS)
         .populate("vendorId", "vendorCode companyName status")
         .lean(),
       VendorSurveyAllocation.countDocuments(q)
@@ -86,7 +112,8 @@ export const vendorAllocationRepository = {
   async sumAllocatedQuotaForSurvey(panelSurveyId: Types.ObjectId, excludeId?: Types.ObjectId) {
     const match: Record<string, unknown> = {
       panelSurveyId,
-      status: { $in: ["active", "paused"] }
+      status: { $in: ["active", "paused"] },
+      vendorResponseStatus: { $ne: "rejected" }
     };
     if (excludeId) match._id = { $ne: excludeId };
 
@@ -103,7 +130,7 @@ export const vendorAllocationRepository = {
 
   updateById(id: string, update: Record<string, unknown>) {
     return VendorSurveyAllocation.findByIdAndUpdate(id, { $set: update }, { new: true })
-      .populate("panelSurveyId", "surveyName surveyCode surveyStatus remainingQuota totalQuota")
+      .populate("panelSurveyId", PANEL_SURVEY_SAFE_POPULATE_FIELDS)
       .populate("vendorId", "vendorCode companyName status")
       .lean();
   },

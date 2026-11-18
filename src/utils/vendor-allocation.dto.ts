@@ -1,4 +1,7 @@
-import type { VendorAllocationStatus } from "../constants/vendor-allocation";
+import type {
+  VendorAllocationResponseStatus,
+  VendorAllocationStatus
+} from "../constants/vendor-allocation";
 
 export type VendorAllocationSurveySummary = {
   id: string;
@@ -7,6 +10,18 @@ export type VendorAllocationSurveySummary = {
   surveyStatus: string;
   remainingQuota: number;
   totalQuota: number;
+  targetCountries?: string[];
+  estimatedLOI?: number | null;
+  incidenceRate?: number | null;
+};
+
+export type VendorPortalQuotaGroupDto = {
+  id: string;
+  groupName: string;
+  groupDescription: string;
+  totalQuota: number;
+  remainingQuota: number;
+  status: string;
 };
 
 export type VendorAllocationVendorSummary = {
@@ -25,6 +40,8 @@ export type VendorSurveyAllocationDto = {
   panelSurvey: VendorAllocationSurveySummary | null;
   vendor: VendorAllocationVendorSummary | null;
   status: VendorAllocationStatus;
+  vendorResponseStatus: VendorAllocationResponseStatus;
+  vendorRespondedAt: string | null;
   allocatedQuota: number;
   startedCount: number;
   completedCount: number;
@@ -45,13 +62,16 @@ export type VendorSurveyAllocationDto = {
   updatedAt: string | null;
 };
 
-/** Vendor portal view — no supplier URLs or internal supplier fields */
+/** Vendor portal view — full safe survey specs, no supplier URLs or internal pricing; routingLink hidden until vendor accepts */
 export type VendorPortalAllocationDto = {
   id: string;
   allocationCode: string;
   surveyName: string;
   surveyCode: string;
+  surveyStatus: string;
   status: VendorAllocationStatus;
+  vendorResponseStatus: VendorAllocationResponseStatus;
+  vendorRespondedAt: string | null;
   allocatedQuota: number;
   startedCount: number;
   completedCount: number;
@@ -62,9 +82,30 @@ export type VendorPortalAllocationDto = {
   conversionRate: number;
   incidenceRate: number;
   vendorCpi: number;
-  routingLink: string;
+  /** Only returned after vendor accepts the allocation */
+  routingLink: string | null;
   startDate: string | null;
   endDate: string | null;
+  allocationNotes: string;
+  createdAt: string | null;
+  // Full safe survey specifications
+  targetCountries: string[];
+  targetGender: string;
+  targetAgeMin: number | null;
+  targetAgeMax: number | null;
+  targetProfessions: string[];
+  targetIndustries: string[];
+  targetCompanySizes: string[];
+  targetDevices: string[];
+  targetLanguages: string[];
+  estimatedLOI: number | null;
+  surveyIncidenceRate: number | null;
+  surveyTotalQuota: number;
+  surveyRemainingQuota: number;
+  dynamicQuotaGroups: VendorPortalQuotaGroupDto[];
+  surveyStartDate: string | null;
+  surveyEndDate: string | null;
+  surveyNotes: string;
 };
 
 export type VendorAllocationAnalyticsDto = {
@@ -98,6 +139,39 @@ function refId(value: unknown): string {
   return String(value);
 }
 
+function normalizeResponseStatus(value: unknown): VendorAllocationResponseStatus {
+  if (value === "accepted" || value === "rejected" || value === "pending") {
+    return value;
+  }
+  return "pending";
+}
+
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item ?? "").trim()).filter(Boolean);
+}
+
+function optionalNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function mapQuotaGroups(value: unknown): VendorPortalQuotaGroupDto[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((raw) => {
+    const g = (raw ?? {}) as Record<string, unknown>;
+    return {
+      id: String(g._id ?? g.id ?? ""),
+      groupName: String(g.groupName ?? ""),
+      groupDescription: String(g.groupDescription ?? ""),
+      totalQuota: Number(g.totalQuota ?? 0),
+      remainingQuota: Number(g.remainingQuota ?? 0),
+      status: String(g.status ?? "active")
+    };
+  });
+}
+
 function surveySummary(s: Record<string, unknown> | null | undefined): VendorAllocationSurveySummary | null {
   if (!s?._id) return null;
   return {
@@ -106,7 +180,10 @@ function surveySummary(s: Record<string, unknown> | null | undefined): VendorAll
     surveyCode: String(s.surveyCode ?? ""),
     surveyStatus: String(s.surveyStatus ?? ""),
     remainingQuota: Number(s.remainingQuota ?? 0),
-    totalQuota: Number(s.totalQuota ?? 0)
+    totalQuota: Number(s.totalQuota ?? 0),
+    targetCountries: stringArray(s.targetCountries),
+    estimatedLOI: optionalNumber(s.estimatedLOI),
+    incidenceRate: optionalNumber(s.incidenceRate)
   };
 }
 
@@ -146,6 +223,8 @@ export function toVendorSurveyAllocationDto(
           : null)
     ),
     status: doc.status as VendorAllocationStatus,
+    vendorResponseStatus: normalizeResponseStatus(doc.vendorResponseStatus),
+    vendorRespondedAt: iso(doc.vendorRespondedAt),
     allocatedQuota: Number(doc.allocatedQuota ?? 0),
     startedCount: Number(doc.startedCount ?? 0),
     completedCount: Number(doc.completedCount ?? 0),
@@ -169,14 +248,24 @@ export function toVendorSurveyAllocationDto(
 
 export function toVendorPortalAllocationDto(
   doc: Record<string, unknown>,
-  survey: { surveyName: string; surveyCode: string }
+  surveyDoc?: Record<string, unknown> | null
 ): VendorPortalAllocationDto {
+  const survey =
+    surveyDoc ??
+    (typeof doc.panelSurveyId === "object" && doc.panelSurveyId !== null
+      ? (doc.panelSurveyId as Record<string, unknown>)
+      : {});
+  const vendorResponseStatus = normalizeResponseStatus(doc.vendorResponseStatus);
+
   return {
     id: String(doc._id),
     allocationCode: String(doc.allocationCode ?? ""),
-    surveyName: survey.surveyName,
-    surveyCode: survey.surveyCode,
+    surveyName: String(survey?.surveyName ?? "Survey"),
+    surveyCode: String(survey?.surveyCode ?? ""),
+    surveyStatus: String(survey?.surveyStatus ?? ""),
     status: doc.status as VendorAllocationStatus,
+    vendorResponseStatus,
+    vendorRespondedAt: iso(doc.vendorRespondedAt),
     allocatedQuota: Number(doc.allocatedQuota ?? 0),
     startedCount: Number(doc.startedCount ?? 0),
     completedCount: Number(doc.completedCount ?? 0),
@@ -187,8 +276,27 @@ export function toVendorPortalAllocationDto(
     conversionRate: Number(doc.conversionRate ?? 0),
     incidenceRate: Number(doc.incidenceRate ?? 0),
     vendorCpi: Number(doc.vendorCpi ?? 0),
-    routingLink: String(doc.routingLink ?? ""),
+    routingLink: vendorResponseStatus === "accepted" ? String(doc.routingLink ?? "") : null,
     startDate: iso(doc.startDate),
-    endDate: iso(doc.endDate)
+    endDate: iso(doc.endDate),
+    allocationNotes: String(doc.notes ?? ""),
+    createdAt: iso(doc.createdAt),
+    targetCountries: stringArray(survey?.targetCountries),
+    targetGender: String(survey?.targetGender ?? "all"),
+    targetAgeMin: optionalNumber(survey?.targetAgeMin),
+    targetAgeMax: optionalNumber(survey?.targetAgeMax),
+    targetProfessions: stringArray(survey?.targetProfessions),
+    targetIndustries: stringArray(survey?.targetIndustries),
+    targetCompanySizes: stringArray(survey?.targetCompanySizes),
+    targetDevices: stringArray(survey?.targetDevices),
+    targetLanguages: stringArray(survey?.targetLanguages),
+    estimatedLOI: optionalNumber(survey?.estimatedLOI),
+    surveyIncidenceRate: optionalNumber(survey?.incidenceRate),
+    surveyTotalQuota: Number(survey?.totalQuota ?? 0),
+    surveyRemainingQuota: Number(survey?.remainingQuota ?? 0),
+    dynamicQuotaGroups: mapQuotaGroups(survey?.dynamicQuotaGroups),
+    surveyStartDate: iso(survey?.startDate),
+    surveyEndDate: iso(survey?.endDate),
+    surveyNotes: String(survey?.notes ?? "")
   };
 }

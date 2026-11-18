@@ -31,6 +31,7 @@ type ListParams = {
   pageSize?: number;
   search?: string;
   providerId?: string;
+  source?: "all" | "sherpa" | "other";
   country?: string;
   surveyStatus?: PanelSurveyStatus;
   surveyAudience?: PanelSurveyAudience;
@@ -183,14 +184,48 @@ export const panelSurveyService = {
       filter.targetCountries = params.country.trim().toUpperCase();
     }
 
+    const andClauses: Record<string, unknown>[] = [];
+
+    if (params.source === "sherpa" || params.source === "other") {
+      const sherpaCompanies = await SurveyCompany.find({
+        $or: [
+          { companyCode: { $regex: /^SURVEYSHERPA$/i } },
+          { companyName: { $regex: /sherpa/i } }
+        ]
+      })
+        .select("_id")
+        .lean();
+      const sherpaIds = sherpaCompanies.map((c) => c._id);
+
+      if (params.source === "sherpa") {
+        andClauses.push({
+          $or: [
+            ...(sherpaIds.length > 0 ? [{ providerId: { $in: sherpaIds } }] : []),
+            { surveyCode: { $regex: /^SS-/i } }
+          ]
+        });
+      } else {
+        if (sherpaIds.length > 0) {
+          andClauses.push({ providerId: { $nin: sherpaIds } });
+        }
+        andClauses.push({ surveyCode: { $not: /^SS-/i } });
+      }
+    }
+
     if (params.search?.trim()) {
       const q = params.search.trim();
-      filter.$or = [
-        { surveyName: { $regex: q, $options: "i" } },
-        { surveyCode: { $regex: q, $options: "i" } },
-        { externalSurveyId: { $regex: q, $options: "i" } },
-        { supplierProjectPid: { $regex: q, $options: "i" } }
-      ];
+      andClauses.push({
+        $or: [
+          { surveyName: { $regex: q, $options: "i" } },
+          { surveyCode: { $regex: q, $options: "i" } },
+          { externalSurveyId: { $regex: q, $options: "i" } },
+          { supplierProjectPid: { $regex: q, $options: "i" } }
+        ]
+      });
+    }
+
+    if (andClauses.length > 0) {
+      filter.$and = andClauses;
     }
 
     const sortField: SortField = SORT_FIELDS.includes(params.sortBy as SortField)

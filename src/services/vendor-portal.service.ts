@@ -46,7 +46,11 @@ export const vendorPortalService = {
     const vid = new Types.ObjectId(vendorId);
     const [stats, activeAssignments] = await Promise.all([
       fetchVendorLevelAnalytics(vendorId).catch(() => null),
-      VendorSurveyAllocation.countDocuments({ vendorId: vid, status: "active" })
+      VendorSurveyAllocation.countDocuments({
+        vendorId: vid,
+        status: "active",
+        vendorResponseStatus: { $ne: "rejected" }
+      })
     ]);
 
     if (!stats) {

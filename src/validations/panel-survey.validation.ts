@@ -64,6 +64,7 @@ export const listPanelSurveysSchema = Joi.object({
     pageSize: Joi.number().integer().min(1).max(1000).default(20),
     search: Joi.string().allow(""),
     providerId: Joi.string().hex().length(24).allow(""),
+    source: Joi.string().valid("all", "sherpa", "other"),
     country: Joi.string().trim().max(8),
     surveyStatus: Joi.string().valid(...PANEL_SURVEY_STATUSES),
     surveyAudience: Joi.string().valid(...PANEL_SURVEY_AUDIENCES),

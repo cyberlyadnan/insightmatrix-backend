@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
-import type { VendorAllocationStatus } from "../constants/vendor-allocation";
+import type {
+  VendorAllocationResponseStatus,
+  VendorAllocationStatus
+} from "../constants/vendor-allocation";
 
 const vendorSurveyAllocationSchema = new mongoose.Schema(
   {
@@ -38,6 +41,13 @@ const vendorSurveyAllocationSchema = new mongoose.Schema(
       default: "active",
       index: true
     },
+    vendorResponseStatus: {
+      type: String,
+      enum: ["pending", "accepted", "rejected"],
+      default: "pending",
+      index: true
+    },
+    vendorRespondedAt: { type: Date, default: null },
     allocatedQuota: { type: Number, required: true, min: 1 },
     startedCount: { type: Number, default: 0, min: 0 },
     completedCount: { type: Number, default: 0, min: 0 },
@@ -62,6 +72,7 @@ const vendorSurveyAllocationSchema = new mongoose.Schema(
 
 vendorSurveyAllocationSchema.index({ panelSurveyId: 1, vendorId: 1 });
 vendorSurveyAllocationSchema.index({ vendorId: 1, status: 1, createdAt: -1 });
+vendorSurveyAllocationSchema.index({ vendorId: 1, vendorResponseStatus: 1, createdAt: -1 });
 vendorSurveyAllocationSchema.index({ panelSurveyId: 1, status: 1 });
 
 vendorSurveyAllocationSchema.pre("save", function normalizeCode(next) {
@@ -74,6 +85,7 @@ vendorSurveyAllocationSchema.pre("save", function normalizeCode(next) {
 export type VendorSurveyAllocationDoc = mongoose.InferSchemaType<typeof vendorSurveyAllocationSchema> & {
   _id: mongoose.Types.ObjectId;
   status: VendorAllocationStatus;
+  vendorResponseStatus: VendorAllocationResponseStatus;
 };
 
 export const VendorSurveyAllocation = mongoose.model(

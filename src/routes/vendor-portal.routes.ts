@@ -11,8 +11,10 @@ import {
   vendorUpdateProfile
 } from "../controllers/vendor-portal.controller";
 import {
+  acceptVendorPortalSurvey,
   getVendorPortalSurvey,
-  listVendorPortalSurveys
+  listVendorPortalSurveys,
+  rejectVendorPortalSurvey
 } from "../controllers/vendor-portal-allocation.controller";
 import {
   listVendorAllocationsSchema,
@@ -37,6 +39,16 @@ router.get(
   "/surveys/:allocationId",
   validate(vendorPortalAllocationIdParamsSchema),
   getVendorPortalSurvey
+);
+router.post(
+  "/surveys/:allocationId/accept",
+  validate(vendorPortalAllocationIdParamsSchema),
+  acceptVendorPortalSurvey
+);
+router.post(
+  "/surveys/:allocationId/reject",
+  validate(vendorPortalAllocationIdParamsSchema),
+  rejectVendorPortalSurvey
 );
 
 export default router;

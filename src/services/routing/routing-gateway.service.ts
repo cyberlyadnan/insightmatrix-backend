@@ -147,6 +147,15 @@ export async function validateVendorAllocationForRouting(
   if (allocation.status === "completed") {
     throw new ApiError(403, "This allocation has reached its quota");
   }
+  const vendorResponseStatus = String(
+    (allocation as Record<string, unknown>).vendorResponseStatus ?? "pending"
+  );
+  if (vendorResponseStatus === "rejected") {
+    throw new ApiError(403, "This allocation was declined by the vendor");
+  }
+  if (vendorResponseStatus !== "accepted") {
+    throw new ApiError(403, "This allocation has not been accepted by the vendor yet");
+  }
   if (vendor.status === "suspended" || vendor.status === "paused") {
     throw new ApiError(403, "Vendor is not available for traffic");
   }

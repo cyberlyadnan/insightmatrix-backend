@@ -1,5 +1,8 @@
 import Joi from "joi";
-import { VENDOR_ALLOCATION_STATUSES } from "../constants/vendor-allocation";
+import {
+  VENDOR_ALLOCATION_RESPONSE_STATUSES,
+  VENDOR_ALLOCATION_STATUSES
+} from "../constants/vendor-allocation";
 
 const emptyObject = Joi.object({}).required();
 
@@ -12,6 +15,7 @@ export const listVendorAllocationsSchema = Joi.object({
     panelSurveyId: Joi.string().hex().length(24),
     vendorId: Joi.string().hex().length(24),
     status: Joi.string().valid(...VENDOR_ALLOCATION_STATUSES),
+    vendorResponseStatus: Joi.string().valid(...VENDOR_ALLOCATION_RESPONSE_STATUSES),
     search: Joi.string().trim().max(200).allow("")
   }).required()
 });

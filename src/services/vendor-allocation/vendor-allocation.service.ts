@@ -92,6 +92,8 @@ export const vendorAllocationService = {
       panelSurveyId: payload.panelSurveyId,
       vendorId: payload.vendorId,
       status: "active",
+      vendorResponseStatus: "pending",
+      vendorRespondedAt: null,
       allocatedQuota: payload.allocatedQuota,
       liveRemainingQuota,
       conversionRate,
@@ -225,5 +227,23 @@ export const vendorAllocationService = {
       throw new ApiError(404, "Allocation not found");
     }
     return doc;
+  },
+
+  async respondAsVendor(
+    vendorId: string,
+    allocationId: string,
+    decision: "accepted" | "rejected"
+  ) {
+    const existing = await this.getForVendor(vendorId, allocationId);
+    if (existing.status === "closed" || existing.status === "completed") {
+      throw new ApiError(400, "Closed or completed allocations cannot be updated");
+    }
+
+    const updated = await vendorAllocationRepository.updateById(allocationId, {
+      vendorResponseStatus: decision,
+      vendorRespondedAt: new Date()
+    });
+    if (!updated) throw new ApiError(404, "Allocation not found");
+    return updated;
   }
 };

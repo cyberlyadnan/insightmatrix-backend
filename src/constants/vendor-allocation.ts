@@ -2,6 +2,11 @@
 export const VENDOR_ALLOCATION_STATUSES = ["active", "paused", "completed", "closed"] as const;
 export type VendorAllocationStatus = (typeof VENDOR_ALLOCATION_STATUSES)[number];
 
+/** Vendor acceptance state for an assigned allocation */
+export const VENDOR_ALLOCATION_RESPONSE_STATUSES = ["pending", "accepted", "rejected"] as const;
+export type VendorAllocationResponseStatus =
+  (typeof VENDOR_ALLOCATION_RESPONSE_STATUSES)[number];
+
 /** Per-respondent vendor routing session */
 export const VENDOR_RESPONDENT_SESSION_STATUSES = [
   "started",

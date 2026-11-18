@@ -5,11 +5,11 @@ import { fetchAllocationAnalytics } from "../services/vendor-allocation/allocati
 import { toVendorPortalAllocationDto } from "../utils/vendor-allocation.dto";
 
 function mapPortalItem(doc: Record<string, unknown>) {
-  const survey = doc.panelSurveyId as Record<string, unknown>;
-  return toVendorPortalAllocationDto(doc, {
-    surveyName: String(survey?.surveyName ?? "Survey"),
-    surveyCode: String(survey?.surveyCode ?? "")
-  });
+  const survey =
+    typeof doc.panelSurveyId === "object" && doc.panelSurveyId !== null
+      ? (doc.panelSurveyId as Record<string, unknown>)
+      : null;
+  return toVendorPortalAllocationDto(doc, survey);
 }
 
 export const listVendorPortalSurveys = asyncHandler(async (req, res) => {
@@ -30,5 +30,31 @@ export const getVendorPortalSurvey = asyncHandler(async (req, res) => {
       allocation: mapPortalItem(doc as Record<string, unknown>),
       analytics
     }
+  });
+});
+
+export const acceptVendorPortalSurvey = asyncHandler(async (req, res) => {
+  const vendorId = String(req.vendor._id);
+  const doc = await vendorAllocationService.respondAsVendor(
+    vendorId,
+    req.params.allocationId,
+    "accepted"
+  );
+  sendResponse(res, {
+    message: "Survey allocation accepted",
+    data: mapPortalItem(doc as Record<string, unknown>)
+  });
+});
+
+export const rejectVendorPortalSurvey = asyncHandler(async (req, res) => {
+  const vendorId = String(req.vendor._id);
+  const doc = await vendorAllocationService.respondAsVendor(
+    vendorId,
+    req.params.allocationId,
+    "rejected"
+  );
+  sendResponse(res, {
+    message: "Survey allocation rejected",
+    data: mapPortalItem(doc as Record<string, unknown>)
   });
 });
