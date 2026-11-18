@@ -6,6 +6,12 @@ import { fetchVendorLevelAnalytics } from "./vendor-allocation/allocation-analyt
 import { toVendorDashboardSummary, toVendorPublicProfile } from "../utils/vendor.dto";
 import type { VendorCallbackUrls } from "../types/vendor-callback";
 import { normalizeVendorCallbackUrls } from "../utils/vendor-callback";
+import {
+  fetchVendorDashboardStatsForRange,
+  fetchVendorHourlyReport,
+  type DateRangeInput,
+  type VendorHourlyReportParams
+} from "./vendor-portal-reports.service";
 
 export const vendorPortalService = {
   getProfile: async (vendorId: string) => {
@@ -38,10 +44,19 @@ export const vendorPortalService = {
     return toVendorPublicProfile(doc);
   },
 
-  getDashboardSummary: async (vendorId: string) => {
+  getDashboardSummary: async (vendorId: string, range?: DateRangeInput) => {
     const doc = await vendorRepository.findById(vendorId);
     if (!doc) throw new ApiError(404, "Vendor not found");
     const base = toVendorDashboardSummary(doc);
+
+    // If a date/hour range filter is active, compute exact metrics from sessions in that window
+    if (range?.dateFrom || range?.dateTo) {
+      const rangeStats = await fetchVendorDashboardStatsForRange(vendorId, range);
+      return {
+        ...base,
+        ...rangeStats
+      };
+    }
 
     const vid = new Types.ObjectId(vendorId);
     const [stats, activeAssignments] = await Promise.all([
@@ -63,6 +78,7 @@ export const vendorPortalService = {
     return {
       ...base,
       activeAssignments,
+      totalStarts: stats.startedCount,
       totalCompletes: stats.completedCount,
       totalTerminates: stats.terminateCount,
       totalQuotaFull: stats.quotaFullCount,
@@ -71,5 +87,9 @@ export const vendorPortalService = {
       terminationRate:
         sessions > 0 ? Math.round((stats.terminateCount / sessions) * 10000) / 100 : 0
     };
+  },
+
+  getHourlyReport: async (vendorId: string, params: VendorHourlyReportParams) => {
+    return fetchVendorHourlyReport(vendorId, params);
   }
 };

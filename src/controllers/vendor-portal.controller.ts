@@ -19,6 +19,23 @@ export const vendorChangePassword = asyncHandler(async (req, res) => {
 });
 
 export const vendorDashboardSummary = asyncHandler(async (req, res) => {
-  const summary = await vendorPortalService.getDashboardSummary(String(req.vendor!._id));
+  const query = (req.validatedQuery ?? req.query) as { dateFrom?: string; dateTo?: string };
+  const summary = await vendorPortalService.getDashboardSummary(String(req.vendor!._id), {
+    dateFrom: query.dateFrom,
+    dateTo: query.dateTo
+  });
   sendResponse(res, { data: summary });
+});
+
+export const vendorHourlyReport = asyncHandler(async (req, res) => {
+  const query = (req.validatedQuery ?? req.query) as {
+    dateFrom?: string;
+    dateTo?: string;
+    allocationId?: string;
+    status?: string;
+    country?: string;
+    tzOffsetMinutes?: number;
+  };
+  const report = await vendorPortalService.getHourlyReport(String(req.vendor!._id), query);
+  sendResponse(res, { data: report });
 });

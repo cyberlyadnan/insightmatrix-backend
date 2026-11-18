@@ -95,14 +95,18 @@ export async function buildRespondentMatchQuery(
     if (dateFrom) {
       const start = new Date(dateFrom);
       if (!Number.isNaN(start.getTime())) {
-        start.setHours(0, 0, 0, 0);
+        if (!dateFrom.includes("T")) {
+          start.setHours(0, 0, 0, 0);
+        }
         createdAt.$gte = start;
       }
     }
     if (dateTo) {
       const end = new Date(dateTo);
       if (!Number.isNaN(end.getTime())) {
-        end.setHours(23, 59, 59, 999);
+        if (!dateTo.includes("T")) {
+          end.setHours(23, 59, 59, 999);
+        }
         createdAt.$lte = end;
       }
     }

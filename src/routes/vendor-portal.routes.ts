@@ -7,6 +7,7 @@ import {
 import {
   vendorChangePassword,
   vendorDashboardSummary,
+  vendorHourlyReport,
   vendorMe,
   vendorUpdateProfile
 } from "../controllers/vendor-portal.controller";
@@ -18,6 +19,8 @@ import {
 } from "../controllers/vendor-portal-allocation.controller";
 import {
   listVendorAllocationsSchema,
+  vendorDashboardQuerySchema,
+  vendorHourlyReportQuerySchema,
   vendorPortalAllocationIdParamsSchema
 } from "../validations/vendor-allocation.validation";
 import {
@@ -33,7 +36,8 @@ router.use(requireActiveVendor);
 router.get("/me", vendorMe);
 router.patch("/me", validate(vendorUpdateProfileSchema), vendorUpdateProfile);
 router.patch("/me/password", validate(vendorChangePasswordSchema), vendorChangePassword);
-router.get("/dashboard", vendorDashboardSummary);
+router.get("/dashboard", validate(vendorDashboardQuerySchema), vendorDashboardSummary);
+router.get("/reports/hourly", validate(vendorHourlyReportQuerySchema), vendorHourlyReport);
 router.get("/surveys", validate(listVendorAllocationsSchema), listVendorPortalSurveys);
 router.get(
   "/surveys/:allocationId",

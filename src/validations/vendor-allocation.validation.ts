@@ -94,3 +94,27 @@ export const vendorPortalAllocationIdParamsSchema = Joi.object({
   }).required(),
   query: emptyObject
 });
+
+export const vendorDashboardQuerySchema = Joi.object({
+  body: Joi.object({}).optional(),
+  params: emptyObject,
+  query: Joi.object({
+    dateFrom: Joi.string().isoDate().allow(""),
+    dateTo: Joi.string().isoDate().allow("")
+  }).required()
+});
+
+export const vendorHourlyReportQuerySchema = Joi.object({
+  body: Joi.object({}).optional(),
+  params: emptyObject,
+  query: Joi.object({
+    dateFrom: Joi.string().isoDate().allow(""),
+    dateTo: Joi.string().isoDate().allow(""),
+    allocationId: Joi.string().hex().length(24).allow(""),
+    status: Joi.string()
+      .valid("all", "started", "redirected", "complete", "terminate", "quota_full", "quality_reject")
+      .default("all"),
+    country: Joi.string().trim().max(16).allow(""),
+    tzOffsetMinutes: Joi.number().integer().min(-840).max(840).default(0)
+  }).required()
+});
